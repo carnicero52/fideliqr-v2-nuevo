@@ -189,10 +189,10 @@ function ScanContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-background">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-violet-50 to-background">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-200" />
-          <div className="h-4 w-32 bg-emerald-200 rounded" />
+          <div className="w-16 h-16 rounded-2xl bg-violet-200" />
+          <div className="h-4 w-32 bg-violet-200 rounded" />
         </div>
       </div>
     );
@@ -200,7 +200,7 @@ function ScanContent() {
 
   if (!negocioId || !negocio) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-violet-50 to-background p-4">
         <Card className="max-w-md mx-auto">
           <CardContent className="pt-6 text-center">
             <QrCode className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -215,11 +215,11 @@ function ScanContent() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-violet-50 to-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-teal-600 flex items-center justify-center">
               <Store className="w-5 h-5 text-white" />
             </div>
           </div>
@@ -254,8 +254,8 @@ function ScanContent() {
                 </div>
               ) : (
                 <div className="py-4">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-8 h-8 text-emerald-600" />
+                  <div className="w-16 h-16 rounded-full bg-violet-100 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-8 h-8 text-violet-600" />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">
                     ¡Gracias {compraResult.cliente.nombre}!
@@ -268,7 +268,7 @@ function ScanContent() {
                   <div className="bg-muted rounded-xl p-4 mt-4">
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Progreso hacia recompensa</span>
-                      <span className="font-medium text-emerald-600">
+                      <span className="font-medium text-violet-600">
                         {compraResult.cliente.comprasTotal % 10} / 10
                       </span>
                     </div>
@@ -281,8 +281,8 @@ function ScanContent() {
                     </p>
                   </div>
                   
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mt-4">
-                    <p className="text-emerald-800 font-medium text-sm">
+                  <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mt-4">
+                    <p className="text-violet-800 font-medium text-sm">
                       📊 Total de compras: <strong>{compraResult.cliente.comprasTotal}</strong>
                     </p>
                   </div>
@@ -311,10 +311,10 @@ function ScanContent() {
           ) : (
             // Formulario para ingresar email
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 mb-4">
+              <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-4 h-4 text-emerald-600" />
-                  <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                  <Shield className="w-4 h-4 text-violet-600" />
+                  <span className="text-sm font-medium text-violet-700 dark:text-violet-400">
                     Registro seguro
                   </span>
                 </div>
@@ -353,7 +353,7 @@ function ScanContent() {
               
               <Button 
                 type="submit" 
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-violet-600 hover:bg-violet-700"
                 disabled={isSubmitting || isBlocked}
                 size="lg"
               >
@@ -380,10 +380,10 @@ function ScanContent() {
 export default function ScanPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-background">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-violet-50 to-background">
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-200" />
-          <div className="h-4 w-32 bg-emerald-200 rounded" />
+          <div className="w-16 h-16 rounded-2xl bg-violet-200" />
+          <div className="h-4 w-32 bg-violet-200 rounded" />
         </div>
       </div>
     }>

@@ -688,7 +688,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+          <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
           <p className="text-muted-foreground">Cargando...</p>
         </div>
       </div>
@@ -697,11 +697,11 @@ export default function AdminPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-violet-50 to-background p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-teal-600 flex items-center justify-center">
                 <Store className="w-6 h-6 text-white" />
               </div>
             </div>
@@ -736,7 +736,7 @@ export default function AdminPage() {
               </div>
               <Button 
                 type="submit" 
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-violet-600 hover:bg-violet-700"
                 disabled={isLoggingIn}
               >
                 {isLoggingIn ? (
@@ -751,7 +751,7 @@ export default function AdminPage() {
             <div className="mt-6 pt-4 border-t text-center">
               <p className="text-sm text-muted-foreground">
                 ¿No tienes cuenta?{' '}
-                <Link href="/#registro" className="text-emerald-600 hover:underline">
+                <Link href="/#registro" className="text-violet-600 hover:underline">
                   Registra tu negocio
                 </Link>
               </p>
@@ -768,7 +768,7 @@ export default function AdminPage() {
       <header className="bg-card border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-teal-600 flex items-center justify-center">
               <Store className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -816,8 +816,8 @@ export default function AdminPage() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                      <Users className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-violet-600" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Clientes</p>
@@ -894,12 +894,12 @@ export default function AdminPage() {
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                                 compra.esRecompensa 
                                   ? 'bg-amber-100' 
-                                  : 'bg-emerald-100'
+                                  : 'bg-violet-100'
                               }`}>
                                 {compra.esRecompensa ? (
                                   <Gift className="w-4 h-4 text-amber-600" />
                                 ) : (
-                                  <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                                  <ShoppingBag className="w-4 h-4 text-violet-600" />
                                 )}
                               </div>
                               <div>
@@ -951,7 +951,7 @@ export default function AdminPage() {
                               className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                             >
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
                                   {index + 1}
                                 </div>
                                 <div>
@@ -960,7 +960,7 @@ export default function AdminPage() {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="font-bold text-emerald-600">{cliente.comprasTotal}</p>
+                                <p className="font-bold text-violet-600">{cliente.comprasTotal}</p>
                                 <p className="text-xs text-muted-foreground">compras</p>
                               </div>
                             </div>
@@ -994,7 +994,7 @@ export default function AdminPage() {
                     </div>
                     <Button 
                       onClick={() => setShowNuevoClienteDialog(true)}
-                      className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+                      className="bg-violet-600 hover:bg-violet-700 gap-2"
                     >
                       <UserPlus className="w-4 h-4" />
                       <span className="hidden sm:inline">Nuevo</span>
@@ -1091,7 +1091,7 @@ export default function AdminPage() {
                                         <Button variant="outline">Cancelar</Button>
                                         <Button 
                                           onClick={() => handleCanjearRecompensa(cliente.id)}
-                                          className="bg-emerald-600 hover:bg-emerald-700"
+                                          className="bg-violet-600 hover:bg-violet-700"
                                         >
                                           Confirmar canje
                                         </Button>
@@ -1176,7 +1176,7 @@ export default function AdminPage() {
                         />
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={handleDownloadQR} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                        <Button onClick={handleDownloadQR} className="gap-2 bg-violet-600 hover:bg-violet-700">
                           <Download className="w-4 h-4" />
                           Descargar QR
                         </Button>
@@ -1208,7 +1208,7 @@ export default function AdminPage() {
                       </p>
                       <Button 
                         onClick={handleAutoFixQR}
-                        className="bg-emerald-600 hover:bg-emerald-700"
+                        className="bg-violet-600 hover:bg-violet-700"
                         disabled={isAutoFixingQR}
                       >
                         {isAutoFixingQR ? (
@@ -1275,8 +1275,8 @@ export default function AdminPage() {
 
                   <Separator />
 
-                  <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4">
-                    <h4 className="font-medium mb-2 text-emerald-700 dark:text-emerald-400">✅ Sistema simplificado</h4>
+                  <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-4">
+                    <h4 className="font-medium mb-2 text-violet-700 dark:text-violet-400">✅ Sistema simplificado</h4>
                     <p className="text-sm text-muted-foreground">
                       Los clientes se registran <strong>únicamente</strong> desde este panel de administración. 
                       El QR sirve solo para acumular compras de clientes ya registrados.
@@ -1291,7 +1291,7 @@ export default function AdminPage() {
           <TabsContent value="seguridad" className="space-y-6">
             {isLoadingSeguridad ? (
               <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
               </div>
             ) : (
               <>
@@ -1487,9 +1487,9 @@ export default function AdminPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                      <h4 className="font-medium text-emerald-800 mb-2">🛡️ Protección activa</h4>
-                      <ul className="text-sm text-emerald-700 space-y-1 list-disc list-inside">
+                    <div className="bg-violet-50 border border-violet-200 rounded-lg p-4">
+                      <h4 className="font-medium text-violet-800 mb-2">🛡️ Protección activa</h4>
+                      <ul className="text-sm text-violet-700 space-y-1 list-disc list-inside">
                         <li>Cooldown de <strong>60 minutos</strong> entre compras del mismo cliente</li>
                         <li>Bloqueo automático de clientes sospechosos</li>
                         <li>Detección de compras excesivas en 24 horas</li>
@@ -1612,9 +1612,9 @@ export default function AdminPage() {
                   <div className="bg-muted rounded-lg p-4">
                     <h4 className="font-medium mb-2">📱 ¿Cómo configurar Telegram?</h4>
                     <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Crea un bot con <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">@BotFather</a> y obtén el token</li>
+                      <li>Crea un bot con <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">@BotFather</a> y obtén el token</li>
                       <li>Inicia un chat con tu bot</li>
-                      <li>Obtén tu Chat ID con <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-emerald-600 hover:underline">@userinfobot</a></li>
+                      <li>Obtén tu Chat ID con <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-violet-600 hover:underline">@userinfobot</a></li>
                       <li>Ingresa ambos datos arriba</li>
                     </ol>
                   </div>
@@ -1623,7 +1623,7 @@ export default function AdminPage() {
                 <Separator />
 
                 <div className="flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-emerald-500" />
+                  <Mail className="w-5 h-5 text-violet-500" />
                   <h3 className="font-medium">Notificaciones por Email</h3>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -1635,7 +1635,7 @@ export default function AdminPage() {
                   <Button 
                     onClick={handleSaveConfig} 
                     disabled={isSaving}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-violet-600 hover:bg-violet-700"
                   >
                     {isSaving ? (
                       <>
@@ -1655,7 +1655,7 @@ export default function AdminPage() {
       <footer className="bg-card border-t py-4 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <div className="flex items-center justify-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-teal-600 flex items-center justify-center">
               <QrCode className="w-3 h-3 text-white" />
             </div>
             <span className="font-medium">FideliQR</span>
@@ -1722,7 +1722,7 @@ export default function AdminPage() {
             </Button>
             <Button 
               onClick={handleCrearCliente}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-violet-600 hover:bg-violet-700"
               disabled={isCreatingCliente}
             >
               {isCreatingCliente ? (
@@ -1751,7 +1751,7 @@ export default function AdminPage() {
           
           {isLoadingDetalle ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
             </div>
           ) : clienteDetalle ? (
             <div className="space-y-4 overflow-y-auto flex-1">
@@ -1759,7 +1759,7 @@ export default function AdminPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <Card>
                   <CardContent className="pt-4 pb-3 text-center">
-                    <ShoppingBag className="w-5 h-5 mx-auto text-emerald-600 mb-1" />
+                    <ShoppingBag className="w-5 h-5 mx-auto text-violet-600 mb-1" />
                     <p className="text-2xl font-bold">{clienteDetalle.comprasTotal}</p>
                     <p className="text-xs text-muted-foreground">Total</p>
                   </CardContent>
@@ -1792,7 +1792,7 @@ export default function AdminPage() {
                 <CardContent className="pt-4">
                   <div className="flex justify-between text-sm mb-2">
                     <span className="font-medium">Progreso hacia próxima recompensa</span>
-                    <span className="text-emerald-600 font-bold">
+                    <span className="text-violet-600 font-bold">
                       {clienteDetalle.comprasTotal % 10} / 10
                     </span>
                   </div>
@@ -1833,12 +1833,12 @@ export default function AdminPage() {
                         <div key={compra.id} className="flex items-center justify-between p-3 hover:bg-muted/50">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              compra.esRecompensa ? 'bg-amber-100' : 'bg-emerald-100'
+                              compra.esRecompensa ? 'bg-amber-100' : 'bg-violet-100'
                             }`}>
                               {compra.esRecompensa ? (
                                 <Gift className="w-4 h-4 text-amber-600" />
                               ) : (
-                                <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                                <ShoppingBag className="w-4 h-4 text-violet-600" />
                               )}
                             </div>
                             <div>
