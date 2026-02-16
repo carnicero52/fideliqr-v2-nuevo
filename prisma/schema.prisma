@@ -6,10 +6,10 @@ generator client {
   driverAdapters  = true
 }
 
-// FideliQR v2 - Schema v2.0.4 - Turso compatible
+// FideliQR v2 - Schema v2.0.5 - Turso compatible
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./dev.db"
 }
 
 // Negocio/Tienda registrada en el sistema
