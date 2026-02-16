@@ -5,6 +5,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// FideliQR v2 - Schema v2.0.2 - Force rebuild
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")

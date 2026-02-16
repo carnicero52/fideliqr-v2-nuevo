@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { hashPassword, createAdminSession } from '@/lib/auth';
 import { generateQRCodeDataURL, getQRUrlForNegocio } from '@/lib/qrcode';
 import { NextRequest, NextResponse } from 'next/server';

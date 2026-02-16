@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { verifyPassword, createAdminSession, verifyAdminSession, deleteAdminSession } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 

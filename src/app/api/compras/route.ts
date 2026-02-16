@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { NextRequest, NextResponse } from 'next/server';
 import { notifyRewardToCliente, notifyRewardToOwner, sendEmail } from '@/lib/notifications';
 import { telegramNotifyReward, telegramNotifyCompra, sendTelegramMessage } from '@/lib/telegram';

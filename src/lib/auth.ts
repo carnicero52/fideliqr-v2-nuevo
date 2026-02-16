@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import crypto from 'crypto';
 
 // Hash password simple con SHA256
