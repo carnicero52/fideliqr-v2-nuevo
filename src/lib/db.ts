@@ -6,21 +6,19 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient() {
+function createPrismaClient(): PrismaClient {
   // Obtener variables de conexión
-  const dbUrl = process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL
+  const dbUrl = process.env.DATABASE_URL
   const authToken = process.env.DATABASE_AUTH_TOKEN
 
-  console.log('🔍 DB Config:', {
-    dbUrl: dbUrl ? dbUrl.substring(0, 30) + '...' : 'undefined',
-    hasAuthToken: !!authToken,
-    nodeEnv: process.env.NODE_ENV
-  })
+  console.log('🔍 Inicializando Prisma Client...')
+  console.log('   DATABASE_URL:', dbUrl ? dbUrl.substring(0, 40) + '...' : 'NO CONFIGURADA')
+  console.log('   DATABASE_AUTH_TOKEN:', authToken ? '✅ Presente' : '❌ No configurado')
 
   // Si hay URL de Turso y token, usar Turso
   if (dbUrl && dbUrl.startsWith('libsql://') && authToken) {
     try {
-      console.log('🔗 Conectando a Turso...')
+      console.log('🔗 Conectando a Turso:', dbUrl)
       const libsql = createClient({
         url: dbUrl,
         authToken: authToken,
@@ -35,13 +33,25 @@ function createPrismaClient() {
     }
   }
 
-  // Si no, usar SQLite local (solo para desarrollo)
-  console.log('📁 Usando SQLite local')
+  // Si no hay Turso, usar SQLite local
+  console.log('📁 Usando SQLite local (desarrollo)')
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   })
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient()
+// Lazy initialization - solo crear cuando se use
+let _db: PrismaClient | null = null
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+export const db: PrismaClient = new Proxy({} as PrismaClient, {
+  get(target, prop) {
+    if (!_db) {
+      _db = createPrismaClient()
+    }
+    const value = (_db as any)[prop]
+    if (typeof value === 'function') {
+      return value.bind(_db)
+    }
+    return value
+  }
+})
