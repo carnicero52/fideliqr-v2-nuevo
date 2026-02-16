@@ -7,12 +7,13 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  // Obtener variables de conexión
-  const dbUrl = process.env.DATABASE_URL
+  // Intentar obtener URL de Turso primero, luego DATABASE_URL
+  let dbUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
   const authToken = process.env.DATABASE_AUTH_TOKEN
 
   console.log('🔍 Inicializando Prisma Client...')
-  console.log('   DATABASE_URL:', dbUrl ? dbUrl.substring(0, 40) + '...' : 'NO CONFIGURADA')
+  console.log('   TURSO_DATABASE_URL:', process.env.TURSO_DATABASE_URL ? '✅ Presente' : '❌ No configurado')
+  console.log('   DATABASE_URL:', process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 40) + '...' : 'No configurado')
   console.log('   DATABASE_AUTH_TOKEN:', authToken ? '✅ Presente' : '❌ No configurado')
 
   // Si hay URL de Turso y token, usar Turso
@@ -40,7 +41,7 @@ function createPrismaClient(): PrismaClient {
   })
 }
 
-// Lazy initialization - solo crear cuando se use
+// Lazy initialization
 let _db: PrismaClient | null = null
 
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
