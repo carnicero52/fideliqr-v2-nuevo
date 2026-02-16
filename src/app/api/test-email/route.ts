@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendEmail, hasEmailConfig } from '@/lib/notifications';
+import nodemailer from 'nodemailer';
 
 // GET - Verificar configuración de email
 export async function GET(request: NextRequest) {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const smtpPort = process.env.SMTP_PORT || '587';
   
   return NextResponse.json({
-    configured: hasEmailConfig(),
+    configured: !!(smtpUser && smtpPass),
     config: {
       host: smtpHost,
       port: smtpPort,
@@ -28,14 +28,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email requerido' }, { status: 400 });
     }
     
-    if (!hasEmailConfig()) {
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+    const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    
+    if (!smtpUser || !smtpPass) {
       return NextResponse.json({ 
         error: 'SMTP no configurado',
         hint: 'Agrega SMTP_USER y SMTP_PASS en las variables de entorno de Vercel'
       }, { status: 400 });
     }
     
-    const result = await sendEmail({
+    // Crear transportador
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: false,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
+      },
+    });
+    
+    // Verificar conexión
+    console.log('Verificando conexión SMTP...');
+    try {
+      await transporter.verify();
+      console.log('✅ Conexión SMTP verificada');
+    } catch (verifyError: any) {
+      console.error('❌ Error verificando SMTP:', verifyError);
+      return NextResponse.json({ 
+        error: 'Error de conexión SMTP',
+        details: verifyError.message,
+        code: verifyError.code,
+        hint: 'Verifica que SMTP_USER y SMTP_PASS sean correctos. Para Gmail, usa una contraseña de aplicación.'
+      }, { status: 500 });
+    }
+    
+    // Enviar email
+    console.log('Enviando email a:', email);
+    const info = await transporter.sendMail({
+      from: `"FideliQR" <${smtpUser}>`,
       to: email,
       subject: '🧪 Prueba de FideliQR - Email funcionando',
       text: '¡Excelente! Las notificaciones de FideliQR están funcionando correctamente.',
@@ -49,20 +83,23 @@ export async function POST(request: NextRequest) {
       `
     });
     
-    if (result) {
-      return NextResponse.json({ 
-        success: true, 
-        message: `Email enviado exitosamente a ${email}` 
-      });
-    } else {
-      return NextResponse.json({ 
-        error: 'Error al enviar email. Revisa los logs del servidor.' 
-      }, { status: 500 });
-    }
-  } catch (error: any) {
-    console.error('Error en test-email:', error);
+    console.log('✅ Email enviado:', info.messageId);
+    
     return NextResponse.json({ 
-      error: error.message 
+      success: true, 
+      message: `Email enviado exitosamente a ${email}`,
+      messageId: info.messageId
+    });
+    
+  } catch (error: any) {
+    console.error('❌ Error completo:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Error desconocido',
+      code: error.code,
+      command: error.command,
+      hint: error.code === 'EAUTH' 
+        ? 'Error de autenticación. Para Gmail, asegúrate de usar una "Contraseña de aplicación" no tu contraseña normal.'
+        : 'Revisa la configuración SMTP en Vercel'
     }, { status: 500 });
   }
 }
