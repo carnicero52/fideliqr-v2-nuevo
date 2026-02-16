@@ -58,7 +58,11 @@ export const db = {
 
     async create(args: { data: Record<string, any> }) {
       const db = getClient()
-      const data = args.data
+      // Generar ID si no existe
+      const data = { 
+        id: `neg_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+        ...args.data 
+      }
       const columns = Object.keys(data).join(', ')
       const placeholders = Object.keys(data).map(() => '?').join(', ')
       const values = Object.values(data)
@@ -88,42 +92,64 @@ export const db = {
 
   // Cliente operations
   cliente: {
-    async findFirst(args: { where: { negocioId_email?: { negocioId: string; email: string }; qrCodigo?: string } }) {
+    async findFirst(args: { where: { negocioId_email?: { negocioId: string; email: string }; qrCodigo?: string; email?: string; activo?: boolean }; include?: { negocio?: { select: { nombre: boolean } } } }) {
       const db = getClient()
+      let sql = 'SELECT c.*, n.nombre as negocio_nombre FROM Cliente c LEFT JOIN Negocio n ON c.negocioId = n.id WHERE 1=1'
+      const params: any[] = []
+      
       if (args.where.qrCodigo) {
-        const result = await db.execute({
-          sql: 'SELECT * FROM Cliente WHERE qrCodigo = ?',
-          args: [args.where.qrCodigo]
-        })
-        return result.rows[0] as any || null
+        sql += ' AND c.qrCodigo = ?'
+        params.push(args.where.qrCodigo)
       }
       if (args.where.negocioId_email) {
-        const result = await db.execute({
-          sql: 'SELECT * FROM Cliente WHERE negocioId = ? AND email = ?',
-          args: [args.where.negocioId_email.negocioId, args.where.negocioId_email.email]
-        })
-        return result.rows[0] as any || null
+        sql += ' AND c.negocioId = ? AND c.email = ?'
+        params.push(args.where.negocioId_email.negocioId, args.where.negocioId_email.email)
       }
-      return null
+      if (args.where.email) {
+        sql += ' AND c.email = ?'
+        params.push(args.where.email.toLowerCase())
+      }
+      if (args.where.activo !== undefined) {
+        sql += ' AND c.activo = ?'
+        params.push(args.where.activo ? 1 : 0)
+      }
+      
+      sql += ' LIMIT 1'
+      
+      const result = await db.execute({ sql, args: params })
+      if (result.rows.length === 0) return null
+      
+      const row = result.rows[0] as any
+      return {
+        ...row,
+        negocio: args.include?.negocio ? { nombre: row.negocio_nombre } : undefined
+      }
     },
 
-    async findUnique(args: { where: { qrCodigo?: string; id?: string } }) {
+    async findUnique(args: { where: { qrCodigo?: string; id?: string }; include?: { negocio?: { select: { nombre: boolean } } } }) {
       const db = getClient()
+      let sql = 'SELECT c.*, n.nombre as negocio_nombre FROM Cliente c LEFT JOIN Negocio n ON c.negocioId = n.id WHERE 1=1'
+      const params: any[] = []
+      
       if (args.where.qrCodigo) {
-        const result = await db.execute({
-          sql: 'SELECT * FROM Cliente WHERE qrCodigo = ?',
-          args: [args.where.qrCodigo]
-        })
-        return result.rows[0] as any || null
+        sql += ' AND c.qrCodigo = ?'
+        params.push(args.where.qrCodigo)
       }
       if (args.where.id) {
-        const result = await db.execute({
-          sql: 'SELECT * FROM Cliente WHERE id = ?',
-          args: [args.where.id]
-        })
-        return result.rows[0] as any || null
+        sql += ' AND c.id = ?'
+        params.push(args.where.id)
       }
-      return null
+      
+      sql += ' LIMIT 1'
+      
+      const result = await db.execute({ sql, args: params })
+      if (result.rows.length === 0) return null
+      
+      const row = result.rows[0] as any
+      return {
+        ...row,
+        negocio: args.include?.negocio ? { nombre: row.negocio_nombre } : undefined
+      }
     },
 
     async findMany(args: { where: { negocioId: string; activo?: boolean; bloqueado?: boolean }; orderBy?: { createdAt: string }; take?: number; skip?: number }) {
@@ -157,7 +183,11 @@ export const db = {
 
     async create(args: { data: Record<string, any> }) {
       const db = getClient()
-      const data = args.data
+      // Generar ID si no existe
+      const data = { 
+        id: `cli_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+        ...args.data 
+      }
       const columns = Object.keys(data).join(', ')
       const placeholders = Object.keys(data).map(() => '?').join(', ')
       const values = Object.values(data)
@@ -231,7 +261,11 @@ export const db = {
 
     async create(args: { data: Record<string, any> }) {
       const db = getClient()
-      const data = args.data
+      // Generar ID si no existe
+      const data = { 
+        id: `com_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+        ...args.data 
+      }
       const columns = Object.keys(data).join(', ')
       const placeholders = Object.keys(data).map(() => '?').join(', ')
       const values = Object.values(data)
@@ -267,7 +301,11 @@ export const db = {
 
     async create(args: { data: Record<string, any> }) {
       const db = getClient()
-      const data = args.data
+      // Generar ID si no existe
+      const data = { 
+        id: `ses_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`,
+        ...args.data 
+      }
       const columns = Object.keys(data).join(', ')
       const placeholders = Object.keys(data).map(() => '?').join(', ')
       const values = Object.values(data)
