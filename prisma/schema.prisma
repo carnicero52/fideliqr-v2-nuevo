@@ -6,7 +6,7 @@ generator client {
   driverAdapters  = true
 }
 
-// FideliQR v2 - Schema v2.0.3 - Turso compatible
+// FideliQR v2 - Schema v2.0.4 - Turso compatible
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
@@ -17,16 +17,16 @@ model Negocio {
   id              String   @id @default(cuid())
   nombre          String
   slug            String   @unique
-  emailDestino    String   // Email para notificaciones del dueño
-  password        String   // Password hasheado para login admin
+  emailDestino    String
+  password        String
   telefono        String?
   direccion       String?
   descripcion     String?
   logoUrl         String?
-  telegramToken   String?  // Token del bot de Telegram (opcional)
-  telegramChatId  String?  // Chat ID del dueño (opcional)
+  telegramToken   String?
+  telegramChatId  String?
   telegramActivo  Boolean  @default(false)
-  qrUrl           String?  // URL del QR generado
+  qrUrl           String?
   activo          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -37,21 +37,20 @@ model Negocio {
   alertas         AlertaSeguridad[]
 }
 
-// Cliente registrado en un negocio
 model Cliente {
   id                String   @id @default(cuid())
   negocioId         String
   nombre            String
   email             String
   telefono          String?
-  qrCodigo          String   @unique  // Código único para el QR del cliente
+  qrCodigo          String   @unique
   comprasTotal      Int      @default(0)
   recompensasPendientes Int  @default(0)
   recompensasCanjeadas Int  @default(0)
   activo            Boolean  @default(true)
-  bloqueado         Boolean  @default(false)  // Cliente bloqueado por sospecha de fraude
-  motivoBloqueo     String?  // Razón del bloqueo
-  bloqueadoEn       DateTime? // Fecha del bloqueo
+  bloqueado         Boolean  @default(false)
+  motivoBloqueo     String?
+  bloqueadoEn       DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -62,16 +61,15 @@ model Cliente {
   @@unique([negocioId, email])
 }
 
-// Registro de cada compra
 model Compra {
   id            String   @id @default(cuid())
   clienteId     String
   negocioId     String
   fecha         DateTime @default(now())
-  compraNumero  Int      // Número correlativo por cliente
-  esRecompensa  Boolean  @default(false) // Si esta compra generó recompensa
-  canjeada      Boolean  @default(false) // Si la recompensa fue canjeada
-  sospechosa    Boolean  @default(false) // Marcada como sospechosa
+  compraNumero  Int
+  esRecompensa  Boolean  @default(false)
+  canjeada      Boolean  @default(false)
+  sospechosa    Boolean  @default(false)
 
   cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   negocio       Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
@@ -81,18 +79,17 @@ model Compra {
   @@index([fecha])
 }
 
-// Alertas de seguridad
 model AlertaSeguridad {
   id          String   @id @default(cuid())
   negocioId   String
   clienteId   String?
-  tipo        String   // "compras_rapidas", "multiple_device", "patron_sospechoso", "manual"
+  tipo        String
   descripcion String
-  datos       String?  // JSON con datos adicionales
+  datos       String?
   revisada    Boolean  @default(false)
   creadaEn    DateTime @default(now())
   revisadaEn  DateTime?
-  revisadaPor String?  // ID del admin que revisó
+  revisadaPor String?
 
   negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
   cliente     Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
@@ -102,7 +99,6 @@ model AlertaSeguridad {
   @@index([creadaEn])
 }
 
-// Sesiones de admin (simple)
 model AdminSession {
   id        String   @id @default(cuid())
   negocioId String
