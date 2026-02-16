@@ -1,50 +1,48 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaLibSql } from '@prisma/adapter-libsql'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
 
-// Crear cliente Prisma dinámicamente
+// Singleton para Prisma
+let prisma: PrismaClient | null = null
+
 function createPrismaClient(): PrismaClient {
-  // En producción, usar Turso - buscar variables con diferentes nombres
+  // Buscar variables de Turso
   const tursoUrl = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL
-  const authToken = process.env.DATABASE_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN
-  
-  console.log('🚀 ====== INICIALIZANDO BASE DE DATOS ======')
-  console.log('   NODE_ENV:', process.env.NODE_ENV)
-  console.log('   TURSO_DATABASE_URL:', tursoUrl ? tursoUrl.substring(0, 50) + '...' : 'NO DEFINIDO')
-  console.log('   DATABASE_AUTH_TOKEN:', authToken ? `✅ (${authToken.length} chars)` : 'NO DEFINIDO')
-  
-  // Si tenemos URL de Turso (empieza con libsql://) y token, usar Turso
+  const authToken = process.env.DATABASE_AUTH_TOKEN
+
+  // Si tenemos URL de Turso (libsql://) y token, usar adapter
   if (tursoUrl && authToken && tursoUrl.startsWith('libsql://')) {
-    console.log('   ✅ MODO: TURSO (producción)')
-    try {
-      const libsql = createClient({
-        url: tursoUrl,
-        authToken: authToken,
-      })
-      const adapter = new PrismaLibSql(libsql)
-      return new PrismaClient({ adapter })
-    } catch (error) {
-      console.error('   ❌ Error conectando a Turso:', error)
-      throw error
-    }
+    console.log('🔵 Usando Turso:', tursoUrl.substring(0, 40) + '...')
+    
+    const libsql = createClient({
+      url: tursoUrl,
+      authToken: authToken,
+    })
+    
+    const adapter = new PrismaLibSQL(libsql)
+    
+    return new PrismaClient({
+      adapter,
+      log: ['error', 'warn'],
+    })
   }
-  
-  // Fallback a SQLite local (solo para desarrollo local)
-  console.log('   📁 MODO: SQLite local (desarrollo)')
-  return new PrismaClient()
+
+  // Fallback a SQLite local para desarrollo
+  console.log('🟢 Usando SQLite local')
+  return new PrismaClient({
+    log: ['error', 'warn'],
+  })
 }
 
-// Singleton para evitar múltiples conexiones
-let prismaInstance: PrismaClient | null = null
-
+// Exportar como db para usar en toda la app
 export const db = new Proxy({} as PrismaClient, {
   get(target, prop) {
-    if (!prismaInstance) {
-      prismaInstance = createPrismaClient()
+    if (!prisma) {
+      prisma = createPrismaClient()
     }
-    const value = (prismaInstance as any)[prop]
+    const value = (prisma as Record<string, unknown>)[prop as string]
     if (typeof value === 'function') {
-      return value.bind(prismaInstance)
+      return value.bind(prisma)
     }
     return value
   }

@@ -2,10 +2,11 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  driverAdapters  = true
 }
 
-// FideliQR v2 - Schema v2.0.2 - Force rebuild
+// FideliQR v2 - Schema v2.0.3 - Turso compatible
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
