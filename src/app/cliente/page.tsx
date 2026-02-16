@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,13 +10,14 @@ import {
   Search,
   Gift,
   ShoppingBag,
-  Trophy,
   ArrowLeft,
   Download,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import QRCode from 'qrcode';
 
 interface ClienteData {
   id: string;
@@ -35,15 +36,43 @@ interface ClienteData {
 export default function ClientePage() {
   const [email, setEmail] = useState('');
   const [cliente, setCliente] = useState<ClienteData | null>(null);
+  const [qrDataURL, setQrDataURL] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const { toast } = useToast();
+
+  // Generar QR cuando cambia el cliente
+  useEffect(() => {
+    if (cliente) {
+      generateQR(cliente.qrCodigo);
+    }
+  }, [cliente]);
+
+  const generateQR = async (codigo: string) => {
+    try {
+      // El QR contiene el código único del cliente
+      // El negocio lo escanea y el sistema lo reconoce
+      const qrData = codigo;
+      const dataUrl = await QRCode.toDataURL(qrData, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#7c3aed',
+          light: '#ffffff'
+        }
+      });
+      setQrDataURL(dataUrl);
+    } catch (error) {
+      console.error('Error generating QR:', error);
+    }
+  };
 
   const buscarCliente = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setNotFound(false);
     setCliente(null);
+    setQrDataURL(null);
 
     try {
       const response = await fetch(`/api/cliente/qr?email=${encodeURIComponent(email)}`);
@@ -59,10 +88,10 @@ export default function ClientePage() {
       }
 
       setCliente(data.cliente);
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message || 'Error al buscar cliente',
+        description: error instanceof Error ? error.message : 'Error al buscar cliente',
         variant: 'destructive',
       });
     } finally {
@@ -71,60 +100,63 @@ export default function ClientePage() {
   };
 
   const descargarQR = () => {
-    if (!cliente) return;
+    if (!cliente || !qrDataURL) return;
 
-    // Crear canvas con QR
+    // Crear canvas con QR completo
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     canvas.width = 300;
-    canvas.height = 350;
+    canvas.height = 380;
 
     // Fondo blanco
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Título
-    ctx.fillStyle = '#7c3aed';
-    ctx.font = 'bold 20px Arial';
+    // Header con gradiente
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 60);
+    gradient.addColorStop(0, '#7c3aed');
+    gradient.addColorStop(1, '#9333ea');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, 60);
+
+    // Nombre del negocio
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(cliente.negocio.nombre, canvas.width / 2, 30);
+    ctx.fillText(cliente.negocio.nombre, canvas.width / 2, 25);
 
     // Nombre del cliente
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 16px Arial';
-    ctx.fillText(cliente.nombre, canvas.width / 2, 55);
+    ctx.font = 'bold 14px Arial';
+    ctx.fillText(cliente.nombre, canvas.width / 2, 48);
 
-    // Dibujar QR simple con el código
-    ctx.fillStyle = '#7c3aed';
-    ctx.font = 'bold 48px Arial';
-    ctx.fillText('📱', canvas.width / 2, 150);
+    // QR Image
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, 22, 70, 256, 256);
 
-    ctx.fillStyle = '#1f2937';
-    ctx.font = 'bold 24px Arial';
-    ctx.fillText('FideliQR v2', canvas.width / 2, 200);
+      // Título
+      ctx.fillStyle = '#7c3aed';
+      ctx.font = 'bold 18px Arial';
+      ctx.fillText('Mi QR Personal', canvas.width / 2, 355);
 
-    // Código QR
-    ctx.fillStyle = '#7c3aed';
-    ctx.font = '18px monospace';
-    ctx.fillText(cliente.qrCodigo, canvas.width / 2, 240);
+      // Código
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '10px monospace';
+      ctx.fillText(cliente.qrCodigo.substring(0, 20) + '...', canvas.width / 2, 372);
 
-    // Stats
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '14px Arial';
-    ctx.fillText(`Compras: ${cliente.comprasTotal}`, canvas.width / 2, 280);
-    ctx.fillText(`Recompensas: ${cliente.recompensasPendientes}`, canvas.width / 2, 300);
-
-    // Descargar
-    const link = document.createElement('a');
-    link.download = `qr-${cliente.nombre.replace(/\s+/g, '-').toLowerCase()}.png`;
-    link.href = canvas.toDataURL();
-    link.click();
+      // Descargar
+      const link = document.createElement('a');
+      link.download = `qr-${cliente.nombre.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.href = canvas.toDataURL();
+      link.click();
+    };
+    img.src = qrDataURL;
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-violet-50 to-background dark:from-violet-950/20">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-violet-50 to-background">
       {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -182,16 +214,21 @@ export default function ClientePage() {
                     className="w-full bg-violet-600 hover:bg-violet-700"
                     disabled={isLoading}
                   >
-                    {isLoading ? 'Buscando...' : 'Buscar mi QR'}
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Buscando...
+                      </>
+                    ) : 'Buscar mi QR'}
                   </Button>
                 </form>
 
                 {notFound && (
-                  <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg text-center">
-                    <p className="text-amber-700 dark:text-amber-300 text-sm">
+                  <div className="mt-6 p-4 bg-amber-50 rounded-lg text-center">
+                    <p className="text-amber-700 text-sm">
                       No encontramos un cliente con ese email.
                     </p>
-                    <p className="text-amber-600 dark:text-amber-400 text-xs mt-1">
+                    <p className="text-amber-600 text-xs mt-1">
                       Pide al negocio que te registre para obtener tu QR personal.
                     </p>
                   </div>
@@ -207,13 +244,17 @@ export default function ClientePage() {
                   <h2 className="text-2xl font-bold mt-1">{cliente.nombre}</h2>
                 </div>
                 <CardContent className="pt-6 text-center">
-                  <div className="w-48 h-48 mx-auto bg-white border-2 border-violet-200 rounded-xl flex items-center justify-center mb-4">
-                    <div className="text-center">
-                      <QrCode className="w-16 h-16 text-violet-600 mx-auto mb-2" />
-                      <p className="text-xs font-mono text-muted-foreground break-all px-2">
-                        {cliente.qrCodigo}
-                      </p>
-                    </div>
+                  {/* QR Real */}
+                  <div className="w-48 h-48 mx-auto bg-white border-2 border-violet-200 rounded-xl flex items-center justify-center mb-4 overflow-hidden">
+                    {qrDataURL ? (
+                      <img 
+                        src={qrDataURL} 
+                        alt="Mi QR" 
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-4">
                     Presenta este código en cada compra
@@ -279,7 +320,10 @@ export default function ClientePage() {
               <Button
                 variant="outline"
                 className="w-full"
-                onClick={() => setCliente(null)}
+                onClick={() => {
+                  setCliente(null);
+                  setQrDataURL(null);
+                }}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Buscar otro cliente

@@ -1,7 +1,7 @@
 import { db } from '@/lib/database';
 import { NextRequest, NextResponse } from 'next/server';
-import { notifyRewardToCliente, notifyRewardToOwner, sendEmail } from '@/lib/notifications';
-import { telegramNotifyReward, telegramNotifyCompra, sendTelegramMessage } from '@/lib/telegram';
+import { notifyRewardToCliente, sendEmail } from '@/lib/notifications';
+import { telegramNotifyReward, telegramNotifyCompra } from '@/lib/telegram';
 
 const COMPRAS_PARA_RECOMPENSA = 10;
 const COOLDOWN_MINUTOS = 60; // Minutos mínimos entre compras del mismo cliente (1 hora)
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const where: any = { negocioId };
+    const where: { negocioId: string; clienteId?: string } = { negocioId };
 
     if (clienteId) {
       where.clienteId = clienteId;
@@ -42,15 +42,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Sumar una compra (público, desde scan)
+// POST - Sumar una compra (V2: El negocio escanea el QR del cliente)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { negocioId, email } = body;
+    const { negocioId, email, qrCodigo } = body;
 
-    if (!negocioId || !email) {
+    // V2: Aceptar qrCodigo O email para encontrar al cliente
+    if (!negocioId || (!email && !qrCodigo)) {
       return NextResponse.json(
-        { error: 'Negocio y email son requeridos' },
+        { error: 'Negocio y código QR o email son requeridos' },
         { status: 400 }
       );
     }
@@ -64,16 +65,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Negocio no encontrado' }, { status: 404 });
     }
 
-    // Buscar el cliente
-    const cliente = await db.cliente.findUnique({
-      where: {
-        negocioId_email: { negocioId, email },
-      },
-    });
+    // Buscar el cliente por QR o por email
+    let cliente;
+    if (qrCodigo) {
+      // V2: Buscar por código QR único
+      cliente = await db.cliente.findUnique({
+        where: { qrCodigo },
+      });
+      
+      // Verificar que el cliente pertenece a este negocio
+      if (cliente && cliente.negocioId !== negocioId) {
+        return NextResponse.json(
+          { error: 'Este cliente no pertenece a tu negocio' },
+          { status: 403 }
+        );
+      }
+    } else {
+      // V1 fallback: Buscar por email y negocio
+      cliente = await db.cliente.findUnique({
+        where: {
+          negocioId_email: { negocioId, email },
+        },
+      });
+    }
 
     if (!cliente) {
       return NextResponse.json(
-        { error: 'Cliente no encontrado. Por favor regístrate primero.' },
+        { error: 'Cliente no encontrado. El código QR no es válido.' },
         { status: 404 }
       );
     }
@@ -82,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (cliente.bloqueado) {
       return NextResponse.json(
         { 
-          error: `Tu cuenta está bloqueada. Motivo: ${cliente.motivoBloqueo || 'Sin especificar'}. Contacta al encargado.`,
+          error: `Cliente bloqueado. Motivo: ${cliente.motivoBloqueo || 'Sin especificar'}`,
           bloqueado: true 
         },
         { status: 403 }
@@ -109,7 +127,7 @@ export async function POST(request: NextRequest) {
             minutosRestantes,
             cooldownMinutos: COOLDOWN_MINUTOS
           },
-          { status: 429 } // Too Many Requests
+          { status: 429 }
         );
       }
     }
@@ -139,22 +157,17 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // ENVIAR NOTIFICACIONES SIEMPRE (no solo en recompensas)
-    console.log('📦 Enviando notificaciones...');
-    console.log('   Negocio:', negocio.nombre);
-    console.log('   Cliente:', cliente.nombre);
-    console.log('   Compra #:', nuevasCompras);
-    console.log('   Es recompensa:', esRecompensa);
-    console.log('   Telegram activo:', negocio.telegramActivo);
-    console.log('   Telegram token:', negocio.telegramToken ? 'Sí' : 'No');
-    console.log('   Telegram chatId:', negocio.telegramChatId ? 'Sí' : 'No');
+    // ENVIAR NOTIFICACIONES
+    console.log('📦 Compra registrada:', {
+      negocio: negocio.nombre,
+      cliente: cliente.nombre,
+      compra: nuevasCompras,
+      esRecompensa
+    });
 
-    // Notificar por Telegram (SIEMPRE que haya una compra)
+    // Notificar por Telegram
     if (negocio.telegramActivo && negocio.telegramToken && negocio.telegramChatId) {
-      console.log('   → Enviando notificación Telegram...');
-      
       if (esRecompensa) {
-        // Notificación especial de recompensa
         telegramNotifyReward({
           token: negocio.telegramToken,
           chatId: negocio.telegramChatId,
@@ -162,60 +175,44 @@ export async function POST(request: NextRequest) {
           clienteNombre: cliente.nombre,
           clienteEmail: cliente.email,
           comprasTotal: nuevasCompras,
-        }).then(success => {
-          console.log('   → Telegram recompensa:', success ? '✅ Enviado' : '❌ Error');
-        }).catch(err => {
-          console.error('   → Telegram error:', err);
-        });
+        }).catch(err => console.error('Telegram error:', err));
       } else {
-        // Notificación de compra normal
         telegramNotifyCompra({
           token: negocio.telegramToken,
           chatId: negocio.telegramChatId,
           negocioNombre: negocio.nombre,
           clienteNombre: cliente.nombre,
           compraNumero: nuevasCompras,
-        }).then(success => {
-          console.log('   → Telegram compra:', success ? '✅ Enviado' : '❌ Error');
-        }).catch(err => {
-          console.error('   → Telegram error:', err);
-        });
+        }).catch(err => console.error('Telegram error:', err));
       }
-    } else {
-      console.log('   → Telegram no configurado');
     }
 
-    // Notificar por Email al dueño (SIEMPRE)
-    console.log('   → Enviando email al dueño:', negocio.emailDestino);
+    // Notificar por Email al dueño
     try {
-      const emailSuccess = await sendEmail({
+      await sendEmail({
         to: negocio.emailDestino,
         subject: esRecompensa 
-          ? `🎁 ¡Recompensa alcanzada! - ${negocio.nombre}`
-          : `🛒 Nueva compra #${nuevasCompras} - ${negocio.nombre}`,
+          ? `🎁 ¡Recompensa! - ${cliente.nombre}`
+          : `🛒 Compra #${nuevasCompras} - ${cliente.nombre}`,
         text: esRecompensa
-          ? `¡Felicidades! ${cliente.nombre} ha alcanzado ${nuevasCompras} compras y tiene una recompensa pendiente.`
-          : `Nueva compra registrada:\n\nCliente: ${cliente.nombre}\nEmail: ${cliente.email}\nCompra #${nuevasCompras}`,
+          ? `${cliente.nombre} ha alcanzado ${nuevasCompras} compras.`
+          : `Compra #${nuevasCompras} de ${cliente.nombre}`,
         html: esRecompensa
-          ? `<h2>🎁 ¡Recompensa alcanzada!</h2><p><strong>${cliente.nombre}</strong> ha alcanzado <strong>${nuevasCompras}</strong> compras.</p><p>Email: ${cliente.email}</p>`
-          : `<h2>🛒 Nueva compra</h2><p><strong>Cliente:</strong> ${cliente.nombre}</p><p><strong>Email:</strong> ${cliente.email}</p><p><strong>Compra #${nuevasCompras}</strong></p>`,
+          ? `<h2>🎁 Recompensa</h2><p><strong>${cliente.nombre}</strong> - ${nuevasCompras} compras</p>`
+          : `<h2>🛒 Compra #${nuevasCompras}</h2><p><strong>${cliente.nombre}</strong></p>`,
       });
-      console.log('   → Email dueño:', emailSuccess ? '✅ Enviado' : '❌ Error');
     } catch (emailError) {
-      console.error('   → Email error:', emailError);
+      console.error('Email error:', emailError);
     }
 
-    // Si alcanzó recompensa, notificar también al cliente por email
+    // Notificar al cliente si hay recompensa
     if (esRecompensa) {
-      console.log('   → Enviando email al cliente:', cliente.email);
       notifyRewardToCliente({
         clienteEmail: cliente.email,
         clienteNombre: cliente.nombre,
         negocioNombre: negocio.nombre,
         comprasTotal: nuevasCompras,
-      }).catch(err => {
-        console.error('   → Email cliente error:', err);
-      });
+      }).catch(err => console.error('Email cliente error:', err));
     }
 
     return NextResponse.json({
@@ -226,13 +223,21 @@ export async function POST(request: NextRequest) {
         esRecompensa: compra.esRecompensa,
       },
       cliente: {
+        id: cliente.id,
         nombre: cliente.nombre,
+        email: cliente.email,
         comprasTotal: nuevasCompras,
+        recompensasPendientes: esRecompensa 
+          ? cliente.recompensasPendientes + 1 
+          : cliente.recompensasPendientes,
         recompensaAlcanzada: esRecompensa,
       },
     });
   } catch (error) {
     console.error('Error registrando compra:', error);
-    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Error del servidor',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
