@@ -34,8 +34,10 @@ export default function HomePage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('📝 Iniciando registro...', { nombre: formData.nombre, email: formData.email });
     
     if (formData.password !== formData.confirmPassword) {
+      console.log('❌ Contraseñas no coinciden');
       toast({
         title: 'Error',
         description: 'Las contraseñas no coinciden',
@@ -45,6 +47,7 @@ export default function HomePage() {
     }
 
     if (formData.password.length < 6) {
+      console.log('❌ Contraseña muy corta');
       toast({
         title: 'Error',
         description: 'La contraseña debe tener al menos 6 caracteres',
@@ -54,6 +57,7 @@ export default function HomePage() {
     }
 
     setIsLoading(true);
+    console.log('🔄 Enviando petición al servidor...');
 
     try {
       const response = await fetch('/api/negocio', {
@@ -69,20 +73,24 @@ export default function HomePage() {
       });
 
       const data = await response.json();
+      console.log('📡 Respuesta del servidor:', { status: response.status, data });
 
       if (!response.ok) {
         throw new Error(data.error || 'Error al registrar');
       }
 
+      console.log('✅ Registro exitoso!');
       toast({
         title: '¡Registro exitoso!',
         description: 'Tu negocio ha sido registrado. Redirigiendo al panel...',
       });
 
       setTimeout(() => {
+        console.log('🔄 Redirigiendo a /admin...');
         window.location.href = '/admin';
       }, 1500);
     } catch (error: any) {
+      console.error('❌ Error en registro:', error);
       toast({
         title: 'Error',
         description: error.message || 'Error al registrar el negocio',
