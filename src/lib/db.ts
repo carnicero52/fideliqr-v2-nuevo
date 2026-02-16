@@ -7,22 +7,33 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
-  // En producción (Vercel), usar Turso si hay credenciales
   const tursoUrl = process.env.TURSO_DATABASE_URL
   const tursoToken = process.env.DATABASE_AUTH_TOKEN
 
-  if (tursoUrl && tursoToken && tursoUrl.startsWith('libsql://')) {
-    console.log('🔗 Conectando a Turso:', tursoUrl)
-    const libsql = createClient({
-      url: tursoUrl,
-      authToken: tursoToken,
-    })
+  console.log('🔍 DB Config:', {
+    hasTursoUrl: !!tursoUrl,
+    hasTursoToken: !!tursoToken,
+    tursoUrlPrefix: tursoUrl?.substring(0, 20) + '...',
+    nodeEnv: process.env.NODE_ENV
+  })
 
-    const adapter = new PrismaLibSql(libsql)
-    return new PrismaClient({ adapter })
+  if (tursoUrl && tursoToken && tursoUrl.startsWith('libsql://')) {
+    try {
+      console.log('🔗 Conectando a Turso...')
+      const libsql = createClient({
+        url: tursoUrl,
+        authToken: tursoToken,
+      })
+
+      const adapter = new PrismaLibSql(libsql)
+      console.log('✅ Conexión Turso exitosa')
+      return new PrismaClient({ adapter })
+    } catch (error) {
+      console.error('❌ Error conectando a Turso:', error)
+      throw error
+    }
   }
 
-  // En desarrollo o si no hay Turso, usar SQLite local
   console.log('📁 Usando SQLite local')
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],

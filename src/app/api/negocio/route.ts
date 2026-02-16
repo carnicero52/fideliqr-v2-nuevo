@@ -52,29 +52,39 @@ export async function GET(request: NextRequest) {
 
 // POST - Crear nuevo negocio (registro inicial)
 export async function POST(request: NextRequest) {
+  console.log('📝 POST /api/negocio - Iniciando registro...')
+  
   try {
     const body = await request.json();
     const { nombre, emailDestino, password, telefono, direccion, descripcion } = body;
 
+    console.log('📋 Datos recibidos:', { nombre, emailDestino, tienePassword: !!password });
+
     // Validaciones
     if (!nombre || !emailDestino || !password) {
+      console.log('❌ Faltan campos requeridos')
       return NextResponse.json(
         { error: 'Nombre, email y contraseña son requeridos' },
         { status: 400 }
       );
     }
 
+    console.log('🔍 Verificando si existe el email...')
+    
     // Verificar si ya existe un negocio con ese email
     const existente = await db.negocio.findFirst({
       where: { emailDestino },
     });
 
     if (existente) {
+      console.log('❌ Email ya registrado')
       return NextResponse.json(
         { error: 'Ya existe un negocio registrado con este email' },
         { status: 400 }
       );
     }
+
+    console.log('✅ Email disponible, generando slug...')
 
     // Generar slug único
     const slugBase = nombre
@@ -90,10 +100,12 @@ export async function POST(request: NextRequest) {
       counter++;
     }
 
+    console.log('✅ Slug generado:', slug)
+
     // Hashear contraseña
     const hashedPassword = hashPassword(password);
 
-    // Obtener URL base para el QR (usar variable de entorno o detectar del request)
+    // Obtener URL base para el QR
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
     const host = request.headers.get('host') || 'localhost:3000';
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
@@ -102,11 +114,13 @@ export async function POST(request: NextRequest) {
     const negocioId = crypto.randomUUID();
     const qrUrl = getQRUrlForNegocio(negocioId, baseUrl);
 
-    // Obtener credenciales de Telegram por defecto desde variables de entorno
+    console.log('🔄 Creando negocio en la base de datos...')
+
+    // Obtener credenciales de Telegram por defecto
     const defaultTelegramToken = process.env.TELEGRAM_BOT_TOKEN;
     const defaultTelegramChatId = process.env.TELEGRAM_CHAT_ID;
 
-    // Crear negocio con Telegram pre-configurado si hay credenciales por defecto
+    // Crear negocio
     const negocio = await db.negocio.create({
       data: {
         id: negocioId,
@@ -118,18 +132,21 @@ export async function POST(request: NextRequest) {
         direccion: direccion || null,
         descripcion: descripcion || null,
         qrUrl,
-        // Pre-configurar Telegram si hay credenciales en variables de entorno
         telegramToken: defaultTelegramToken || null,
         telegramChatId: defaultTelegramChatId || null,
         telegramActivo: !!(defaultTelegramToken && defaultTelegramChatId),
       },
     });
 
+    console.log('✅ Negocio creado:', negocio.id)
+
     // Generar QR como data URL
     const qrDataURL = await generateQRCodeDataURL(qrUrl);
 
     // Crear sesión de admin
     const token = await createAdminSession(negocio.id);
+
+    console.log('✅ Registro completo, enviando respuesta...')
 
     const response = NextResponse.json({
       success: true,
@@ -155,7 +172,10 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error('Error creando negocio:', error);
-    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+    console.error('❌ Error creando negocio:', error)
+    return NextResponse.json({ 
+      error: 'Error del servidor',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
