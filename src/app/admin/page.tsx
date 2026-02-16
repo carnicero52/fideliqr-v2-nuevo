@@ -157,6 +157,11 @@ export default function AdminPage() {
   const [isLoadingDetalle, setIsLoadingDetalle] = useState(false);
   const [showClienteDetalleDialog, setShowClienteDetalleDialog] = useState(false);
   
+  // Test email state
+  const [testEmail, setTestEmail] = useState('');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [emailConfig, setEmailConfig] = useState<{configured: boolean, config: any} | null>(null);
+  
   const { toast } = useToast();
 
   const checkAuth = useCallback(async () => {
@@ -185,6 +190,7 @@ export default function AdminPage() {
       fetchClientes();
       fetchCompras();
       fetchConfig();
+      checkEmailConfig();
     }
   }, [isAuthenticated, negocio, currentPage, searchTerm]);
 
@@ -315,6 +321,55 @@ export default function AdminPage() {
       fetchConfig();
     } catch (error: any) {
       console.error('Error en migración:', error);
+    }
+  };
+
+  const checkEmailConfig = async () => {
+    try {
+      const response = await fetch('/api/test-email');
+      const data = await response.json();
+      setEmailConfig(data);
+    } catch (error) {
+      console.error('Error checking email config:', error);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      toast({
+        title: 'Error',
+        description: 'Ingresa un email para la prueba',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al enviar email');
+      }
+
+      toast({
+        title: '✅ Email enviado',
+        description: `Se envió un email de prueba a ${testEmail}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSendingTest(false);
     }
   };
 
@@ -1216,6 +1271,69 @@ export default function AdminPage() {
                   <p><strong>Escáner de QR:</strong> <code className="bg-muted px-1 rounded">/scan?negocio={negocio?.id}</code></p>
                   <p><strong>Email del negocio:</strong> <code className="bg-muted px-1 rounded">{negocio?.emailDestino}</code></p>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Prueba de Notificaciones */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  Prueba de Notificaciones
+                </CardTitle>
+                <CardDescription>
+                  Verifica que las notificaciones por email funcionen correctamente
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Estado de configuración */}
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
+                  {emailConfig?.configured ? (
+                    <>
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <div>
+                        <p className="font-medium text-sm">Email configurado</p>
+                        <p className="text-xs text-muted-foreground">{emailConfig.config.user}</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="w-5 h-5 text-amber-500" />
+                      <div>
+                        <p className="font-medium text-sm">Email no configurado</p>
+                        <p className="text-xs text-muted-foreground">Agrega SMTP_USER y SMTP_PASS en Vercel</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Formulario de prueba */}
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="email@ejemplo.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleSendTestEmail}
+                    disabled={isSendingTest || !emailConfig?.configured}
+                    className="bg-violet-600 hover:bg-violet-700"
+                  >
+                    {isSendingTest ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Probar
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ingresa un email para enviar un mensaje de prueba y verificar la configuración.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
