@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Table, 
   TableBody, 
@@ -48,7 +50,11 @@ import {
   Shield,
   Ban,
   AlertTriangle,
-  Scan
+  Scan,
+  Bell,
+  Mail,
+  MessageSquare,
+  Save
 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -61,6 +67,25 @@ interface Negocio {
   telefono?: string;
   direccion?: string;
   qrUrl: string;
+}
+
+interface Config {
+  id: string;
+  nombre: string;
+  telefono?: string;
+  direccion?: string;
+  descripcion?: string;
+  notifEmailActivo: boolean;
+  notifEmailRemitente?: string;
+  notifEmailAsunto?: string;
+  notifEmailMensaje?: string;
+  notifTelegramActivo: boolean;
+  notifTelegramToken?: string;
+  notifTelegramChatId?: string;
+  recompensaComprasNecesarias: number;
+  recompensaDescripcion?: string;
+  recompensaMensaje?: string;
+  recompensaVigenciaDias: number;
 }
 
 interface Stats {
@@ -111,6 +136,11 @@ export default function AdminPage() {
   const [loginPassword, setLoginPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   
+  // Config state
+  const [config, setConfig] = useState<Config | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  
   // Nuevo cliente state
   const [showNuevoClienteDialog, setShowNuevoClienteDialog] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -154,6 +184,7 @@ export default function AdminPage() {
       fetchStats();
       fetchClientes();
       fetchCompras();
+      fetchConfig();
     }
   }, [isAuthenticated, negocio, currentPage, searchTerm]);
 
@@ -198,6 +229,92 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Error fetching compras:', error);
+    }
+  };
+
+  const fetchConfig = async () => {
+    setIsLoadingConfig(true);
+    try {
+      const response = await fetch(`/api/configuracion?negocioId=${negocio!.id}`);
+      const data = await response.json();
+      if (response.ok && data.config) {
+        setConfig({
+          id: data.config.id,
+          nombre: data.config.nombre || '',
+          telefono: data.config.telefono || '',
+          direccion: data.config.direccion || '',
+          descripcion: data.config.descripcion || '',
+          notifEmailActivo: data.config.notifEmailActivo === 1 || data.config.notifEmailActivo === true,
+          notifEmailRemitente: data.config.notifEmailRemitente || '',
+          notifEmailAsunto: data.config.notifEmailAsunto || 'Tu código QR de FideliQR',
+          notifEmailMensaje: data.config.notifEmailMensaje || '',
+          notifTelegramActivo: data.config.notifTelegramActivo === 1 || data.config.notifTelegramActivo === true,
+          notifTelegramToken: data.config.notifTelegramToken || '',
+          notifTelegramChatId: data.config.notifTelegramChatId || '',
+          recompensaComprasNecesarias: data.config.recompensaComprasNecesarias || 10,
+          recompensaDescripcion: data.config.recompensaDescripcion || 'Producto gratis',
+          recompensaMensaje: data.config.recompensaMensaje || '¡Felicidades! Has alcanzado tu recompensa',
+          recompensaVigenciaDias: data.config.recompensaVigenciaDias || 30,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching config:', error);
+    } finally {
+      setIsLoadingConfig(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    if (!config) return;
+    
+    setIsSavingConfig(true);
+    try {
+      const response = await fetch('/api/configuracion', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          negocioId: negocio!.id,
+          ...config
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Error al guardar configuración');
+      }
+
+      toast({
+        title: 'Guardado',
+        description: 'La configuración se actualizó correctamente',
+      });
+      
+      // Actualizar el negocio en el estado
+      setNegocio(prev => prev ? { ...prev, nombre: config.nombre } : null);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const handleInitMigration = async () => {
+    try {
+      const response = await fetch('/api/configuracion', {
+        method: 'PUT',
+      });
+      const data = await response.json();
+      toast({
+        title: 'Migración completada',
+        description: 'Las columnas nuevas han sido inicializadas',
+      });
+      fetchConfig();
+    } catch (error: any) {
+      console.error('Error en migración:', error);
     }
   };
 
@@ -247,6 +364,7 @@ export default function AdminPage() {
       setStats(null);
       setClientes([]);
       setCompras([]);
+      setConfig(null);
       toast({
         title: 'Sesión cerrada',
         description: 'Has cerrado sesión correctamente',
@@ -637,7 +755,7 @@ export default function AdminPage() {
                   <li><strong>Agrega clientes</strong> desde la pestaña "Clientes" - ellos recibirán su QR personal</li>
                   <li><strong>El cliente</strong> ve su QR en <code className="bg-muted px-1 rounded">/cliente</code></li>
                   <li><strong>Tú escaneas</strong> su QR con tu teléfono o PC para registrar compras</li>
-                  <li><strong>Canjea recompensas</strong> cuando el cliente tenga 10 compras</li>
+                  <li><strong>Canjea recompensas</strong> cuando el cliente tenga {config?.recompensaComprasNecesarias || 10} compras</li>
                 </ol>
               </CardContent>
             </Card>
@@ -826,42 +944,277 @@ export default function AdminPage() {
 
           {/* Config Tab */}
           <TabsContent value="config" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Información del Negocio</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground text-sm">Nombre</Label>
-                    <p className="font-medium">{negocio?.nombre}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-sm">Email</Label>
-                    <p className="font-medium">{negocio?.emailDestino}</p>
-                  </div>
-                  {negocio?.telefono && (
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Teléfono</Label>
-                      <p className="font-medium">{negocio.telefono}</p>
+            {isLoadingConfig ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-violet-600" />
+              </div>
+            ) : config ? (
+              <>
+                {/* Información del Negocio */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Store className="w-5 h-5" />
+                      Información del Negocio
+                    </CardTitle>
+                    <CardDescription>
+                      Datos básicos de tu negocio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nombre">Nombre del Negocio</Label>
+                        <Input
+                          id="nombre"
+                          value={config.nombre}
+                          onChange={(e) => setConfig({ ...config, nombre: e.target.value })}
+                          placeholder="Nombre de tu negocio"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="telefono">Teléfono</Label>
+                        <Input
+                          id="telefono"
+                          value={config.telefono || ''}
+                          onChange={(e) => setConfig({ ...config, telefono: e.target.value })}
+                          placeholder="+52 55 1234 5678"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="direccion">Dirección</Label>
+                        <Input
+                          id="direccion"
+                          value={config.direccion || ''}
+                          onChange={(e) => setConfig({ ...config, direccion: e.target.value })}
+                          placeholder="Dirección de tu negocio"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="descripcion">Descripción</Label>
+                        <Input
+                          id="descripcion"
+                          value={config.descripcion || ''}
+                          onChange={(e) => setConfig({ ...config, descripcion: e.target.value })}
+                          placeholder="Breve descripción"
+                        />
+                      </div>
                     </div>
-                  )}
-                  {negocio?.direccion && (
-                    <div>
-                      <Label className="text-muted-foreground text-sm">Dirección</Label>
-                      <p className="font-medium">{negocio.direccion}</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
+                {/* Configuración de Notificaciones */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bell className="w-5 h-5" />
+                      Configuración de Notificaciones
+                    </CardTitle>
+                    <CardDescription>
+                      Configura cómo y cuándo recibir notificaciones
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Email Notifications */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          <Label htmlFor="notifEmailActivo">Notificaciones por Email</Label>
+                        </div>
+                        <Switch
+                          id="notifEmailActivo"
+                          checked={config.notifEmailActivo}
+                          onCheckedChange={(checked) => setConfig({ ...config, notifEmailActivo: checked })}
+                        />
+                      </div>
+                      
+                      {config.notifEmailActivo && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-violet-200">
+                          <div className="space-y-2">
+                            <Label htmlFor="notifEmailRemitente">Remitente (Email)</Label>
+                            <Input
+                              id="notifEmailRemitente"
+                              type="email"
+                              value={config.notifEmailRemitente || ''}
+                              onChange={(e) => setConfig({ ...config, notifEmailRemitente: e.target.value })}
+                              placeholder="noreply@tudominio.com"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="notifEmailAsunto">Asunto del Email</Label>
+                            <Input
+                              id="notifEmailAsunto"
+                              value={config.notifEmailAsunto || ''}
+                              onChange={(e) => setConfig({ ...config, notifEmailAsunto: e.target.value })}
+                              placeholder="Tu código QR de FideliQR"
+                            />
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Label htmlFor="notifEmailMensaje">Mensaje Personalizado</Label>
+                            <Textarea
+                              id="notifEmailMensaje"
+                              value={config.notifEmailMensaje || ''}
+                              onChange={(e) => setConfig({ ...config, notifEmailMensaje: e.target.value })}
+                              placeholder="Mensaje que se enviará junto con el QR..."
+                              rows={3}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Telegram Notifications */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare className="w-4 h-4 text-muted-foreground" />
+                          <Label htmlFor="notifTelegramActivo">Notificaciones por Telegram</Label>
+                        </div>
+                        <Switch
+                          id="notifTelegramActivo"
+                          checked={config.notifTelegramActivo}
+                          onCheckedChange={(checked) => setConfig({ ...config, notifTelegramActivo: checked })}
+                        />
+                      </div>
+                      
+                      {config.notifTelegramActivo && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-6 border-l-2 border-violet-200">
+                          <div className="space-y-2">
+                            <Label htmlFor="notifTelegramToken">Token del Bot</Label>
+                            <Input
+                              id="notifTelegramToken"
+                              value={config.notifTelegramToken || ''}
+                              onChange={(e) => setConfig({ ...config, notifTelegramToken: e.target.value })}
+                              placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="notifTelegramChatId">Chat ID</Label>
+                            <Input
+                              id="notifTelegramChatId"
+                              value={config.notifTelegramChatId || ''}
+                              onChange={(e) => setConfig({ ...config, notifTelegramChatId: e.target.value })}
+                              placeholder="-1001234567890"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Configuración de Recompensas */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gift className="w-5 h-5" />
+                      Configuración de Recompensas
+                    </CardTitle>
+                    <CardDescription>
+                      Personaliza el programa de recompensas de tu negocio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="recompensaComprasNecesarias">Compras Necesarias para Recompensa</Label>
+                        <Input
+                          id="recompensaComprasNecesarias"
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={config.recompensaComprasNecesarias}
+                          onChange={(e) => setConfig({ ...config, recompensaComprasNecesarias: parseInt(e.target.value) || 10 })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Número de compras que el cliente necesita para obtener una recompensa
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="recompensaVigenciaDias">Vigencia de Recompensa (días)</Label>
+                        <Input
+                          id="recompensaVigenciaDias"
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={config.recompensaVigenciaDias}
+                          onChange={(e) => setConfig({ ...config, recompensaVigenciaDias: parseInt(e.target.value) || 30 })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Días que el cliente tiene para canjear su recompensa
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="recompensaDescripcion">Descripción de la Recompensa</Label>
+                        <Input
+                          id="recompensaDescripcion"
+                          value={config.recompensaDescripcion || ''}
+                          onChange={(e) => setConfig({ ...config, recompensaDescripcion: e.target.value })}
+                          placeholder="Producto gratis"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Ej: "Producto gratis", "Descuento 20%", "Café gratis"
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="recompensaMensaje">Mensaje de Felicitación</Label>
+                        <Input
+                          id="recompensaMensaje"
+                          value={config.recompensaMensaje || ''}
+                          onChange={(e) => setConfig({ ...config, recompensaMensaje: e.target.value })}
+                          placeholder="¡Felicidades! Has alcanzado tu recompensa"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Botón Guardar */}
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleSaveConfig}
+                    disabled={isSavingConfig}
+                    className="bg-violet-600 hover:bg-violet-700 gap-2"
+                    size="lg"
+                  >
+                    {isSavingConfig ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Guardar Configuración
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <p className="text-center text-muted-foreground mb-4">
+                    No se pudo cargar la configuración. Intenta inicializar las columnas nuevas.
+                  </p>
+                  <Button onClick={handleInitMigration} className="w-full bg-violet-600 hover:bg-violet-700">
+                    Inicializar Configuración
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Enlaces útiles */}
             <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-amber-700 mb-2">🔗 Enlaces útiles</h3>
                 <div className="space-y-2 text-sm">
                   <p><strong>Cliente ve su QR:</strong> <code className="bg-muted px-1 rounded">/cliente</code></p>
                   <p><strong>Escáner de QR:</strong> <code className="bg-muted px-1 rounded">/scan?negocio={negocio?.id}</code></p>
+                  <p><strong>Email del negocio:</strong> <code className="bg-muted px-1 rounded">{negocio?.emailDestino}</code></p>
                 </div>
               </CardContent>
             </Card>

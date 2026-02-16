@@ -23,13 +23,25 @@ model Negocio {
   direccion       String?
   descripcion     String?
   logoUrl         String?
-  telegramToken   String?
-  telegramChatId  String?
-  telegramActivo  Boolean  @default(false)
   qrUrl           String?
   activo          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Configuración de Notificaciones
+  notifEmailActivo        Boolean  @default(true)
+  notifEmailRemitente     String?
+  notifEmailAsunto        String?  @default("Tu código QR de FideliQR")
+  notifEmailMensaje       String?
+  notifTelegramActivo     Boolean  @default(false)
+  notifTelegramToken      String?
+  notifTelegramChatId     String?
+
+  // Configuración de Recompensas
+  recompensaComprasNecesarias  Int      @default(10)
+  recompensaDescripcion        String?  @default("Producto gratis")
+  recompensaMensaje            String?  @default("¡Felicidades! Has alcanzado tu recompensa")
+  recompensaVigenciaDias       Int      @default(30)
 
   clientes        Cliente[]
   compras         Compra[]
