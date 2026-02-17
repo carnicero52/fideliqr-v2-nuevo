@@ -218,12 +218,17 @@ export const db = {
       return { ...data, id: args.where.id }
     },
 
-    async count(args: { where: { negocioId: string } }) {
+    async count(args: { where: { negocioId: string; activo?: boolean } }) {
       const db = getClient()
-      const result = await db.execute({
-        sql: 'SELECT COUNT(*) as count FROM Cliente WHERE negocioId = ?',
-        args: [args.where.negocioId]
-      })
+      let sql = 'SELECT COUNT(*) as count FROM Cliente WHERE negocioId = ?'
+      const params: any[] = [args.where.negocioId]
+      
+      if (args.where.activo !== undefined) {
+        sql += ' AND activo = ?'
+        params.push(args.where.activo ? 1 : 0)
+      }
+      
+      const result = await db.execute({ sql, args: params })
       return (result.rows[0] as any).count
     }
   },
