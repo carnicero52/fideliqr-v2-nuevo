@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { verifyAdminSession } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { notifyNewClienteToOwner } from '@/lib/notifications';

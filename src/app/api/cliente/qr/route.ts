@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET - Buscar cliente por email para mostrar su QR

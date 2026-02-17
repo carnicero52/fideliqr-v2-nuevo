@@ -1,6 +1,6 @@
 import { verifyAdminSession } from '@/lib/auth';
 import { generateQRCodeBuffer } from '@/lib/qrcode';
-import { db } from '@/lib/db';
+import { db } from '@/lib/database';
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET - Descargar QR del negocio
