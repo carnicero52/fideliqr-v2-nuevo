@@ -802,6 +802,47 @@ export default function AdminPage() {
               </Card>
             </div>
 
+            {/* Exportar Datos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="w-5 h-5" />
+                  Exportar Datos
+                </CardTitle>
+                <CardDescription>
+                  Descarga los datos de tu negocio en formato CSV
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open(`/api/admin/exportar-clientes?negocioId=${negocio?.id}`, '_blank')}
+                    className="gap-2 w-full"
+                  >
+                    <Users className="w-4 h-4" />
+                    Clientes
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open(`/api/admin/exportar-compras?negocioId=${negocio?.id}`, '_blank')}
+                    className="gap-2 w-full"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    Compras
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => window.open(`/api/admin/exportar-recompensas?negocioId=${negocio?.id}`, '_blank')}
+                    className="gap-2 w-full"
+                  >
+                    <Gift className="w-4 h-4" />
+                    Recompensas
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* V2 Info */}
             <Card className="bg-violet-50 dark:bg-violet-900/20 border-violet-200">
               <CardContent className="pt-6">
@@ -1287,7 +1328,7 @@ export default function AdminPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Mail className="w-5 h-5" />
-                  Prueba de Notificaciones
+                  Prueba de Notificaciones por Email
                 </CardTitle>
                 <CardDescription>
                   Verifica que las notificaciones por email funcionen correctamente
@@ -1300,7 +1341,7 @@ export default function AdminPage() {
                     <>
                       <CheckCircle className="w-5 h-5 text-green-500" />
                       <div>
-                        <p className="font-medium text-sm">Email configurado</p>
+                        <p className="font-medium text-sm">✅ SMTP Configurado</p>
                         <p className="text-xs text-muted-foreground">{emailConfig.config.user}</p>
                       </div>
                     </>
@@ -1308,11 +1349,29 @@ export default function AdminPage() {
                     <>
                       <AlertTriangle className="w-5 h-5 text-amber-500" />
                       <div>
-                        <p className="font-medium text-sm">Email no configurado</p>
+                        <p className="font-medium text-sm">⚠️ SMTP No Configurado</p>
                         <p className="text-xs text-muted-foreground">Agrega SMTP_USER y SMTP_PASS en Vercel</p>
                       </div>
                     </>
                   )}
+                </div>
+
+                {/* Instrucciones para Gmail */}
+                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200">
+                  <h4 className="font-semibold text-blue-700 mb-2">📧 Configuración para Gmail</h4>
+                  <ol className="text-sm space-y-2 text-blue-600 list-decimal list-inside">
+                    <li>Ve a tu cuenta de Google → Seguridad</li>
+                    <li>Activa la "Verificación en 2 pasos"</li>
+                    <li>Busca "Contraseñas de aplicaciones"</li>
+                    <li>Genera una nueva contraseña (nombre: FideliQR)</li>
+                    <li>Copia esa contraseña de 16 caracteres</li>
+                    <li>En Vercel, configura:
+                      <ul className="ml-6 mt-1 list-disc">
+                        <li><code className="bg-white px-1 rounded">SMTP_USER</code> = tu email de Gmail</li>
+                        <li><code className="bg-white px-1 rounded">SMTP_PASS</code> = la contraseña de aplicación</li>
+                      </ul>
+                    </li>
+                  </ol>
                 </div>
 
                 {/* Formulario de prueba */}
