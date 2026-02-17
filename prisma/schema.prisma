@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Negocio/Tienda registrada en el sistema
+model Negocio {
+  id              String   @id @default(cuid())
+  nombre          String
+  slug            String   @unique
+  emailDestino    String   // Email para notificaciones del dueño
+  password        String   // Password hasheado para login admin
+  telefono        String?
+  direccion       String?
+  descripcion     String?
+  logoUrl         String?
+  telegramToken   String?  // Token del bot de Telegram (opcional)
+  telegramChatId  String?  // Chat ID del dueño (opcional)
+  telegramActivo  Boolean  @default(false)
+  qrUrl           String?  // URL del QR generado
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  clientes        Cliente[]
+  compras         Compra[]
+  sesiones        AdminSession[]
+  alertas         AlertaSeguridad[]
+}
+
+// Cliente registrado en un negocio
+model Cliente {
+  id                String   @id @default(cuid())
+  negocioId         String
+  nombre            String
+  email             String
+  telefono          String?
+  qrCodigo          String   @unique  // Código único para el QR del cliente
+  comprasTotal      Int      @default(0)
+  recompensasPendientes Int  @default(0)
+  recompensasCanjeadas Int  @default(0)
+  activo            Boolean  @default(true)
+  bloqueado         Boolean  @default(false)  // Cliente bloqueado por sospecha de fraude
+  motivoBloqueo     String?  // Razón del bloqueo
+  bloqueadoEn       DateTime? // Fecha del bloqueo
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  negocio           Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  compras           Compra[]
+  alertas           AlertaSeguridad[]
+
+  @@unique([negocioId, email])
+}
+
+// Registro de cada compra
+model Compra {
+  id            String   @id @default(cuid())
+  clienteId     String
+  negocioId     String
+  fecha         DateTime @default(now())
+  compraNumero  Int      // Número correlativo por cliente
+  esRecompensa  Boolean  @default(false) // Si esta compra generó recompensa
+  canjeada      Boolean  @default(false) // Si la recompensa fue canjeada
+  sospechosa    Boolean  @default(false) // Marcada como sospechosa
+
+  cliente       Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  negocio       Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@index([clienteId])
+  @@index([negocioId])
+  @@index([fecha])
+}
+
+// Alertas de seguridad
+model AlertaSeguridad {
+  id          String   @id @default(cuid())
+  negocioId   String
+  clienteId   String?
+  tipo        String   // "compras_rapidas", "multiple_device", "patron_sospechoso", "manual"
+  descripcion String
+  datos       String?  // JSON con datos adicionales
+  revisada    Boolean  @default(false)
+  creadaEn    DateTime @default(now())
+  revisadaEn  DateTime?
+  revisadaPor String?  // ID del admin que revisó
+
+  negocio     Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+  cliente     Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  @@index([negocioId])
+  @@index([clienteId])
+  @@index([creadaEn])
+}
+
+// Sesiones de admin (simple)
+model AdminSession {
+  id        String   @id @default(cuid())
+  negocioId String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  negocio   Negocio  @relation(fields: [negocioId], references: [id], onDelete: Cascade)
+
+  @@index([negocioId])
+}
