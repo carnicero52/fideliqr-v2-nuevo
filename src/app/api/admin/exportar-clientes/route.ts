@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { readFile, unlink } from 'fs/promises';
+import path from 'path';
+
+const execAsync = promisify(exec);
 
 function getTursoClient() {
   const url = process.env.TURSO_DATABASE_URL;
@@ -12,7 +18,7 @@ function getTursoClient() {
   return createClient({ url, authToken });
 }
 
-// GET - Exportar clientes a Excel (XLSX)
+// GET - Exportar clientes a PDF
 export async function GET(request: NextRequest) {
   const negocioId = request.nextUrl.searchParams.get('negocioId');
   
@@ -20,8 +26,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'negocioId es requerido' }, { status: 400 });
   }
 
+  const tempFile = `/tmp/clientes-${Date.now()}.pdf`;
+
   try {
     const db = getTursoClient();
+    
+    // Obtener negocio
+    const negocioResult = await db.execute({
+      sql: 'SELECT nombre FROM Negocio WHERE id = ?',
+      args: [negocioId]
+    });
+    const negocioNombre = negocioResult.rows[0]?.nombre || 'Negocio';
     
     // Obtener todos los clientes del negocio
     const result = await db.execute({
@@ -31,121 +46,47 @@ export async function GET(request: NextRequest) {
         telefono, 
         comprasTotal, 
         recompensasPendientes, 
-        recompensasCanjeadas,
-        createdAt
+        recompensasCanjeadas
       FROM Cliente 
       WHERE negocioId = ? AND activo = 1
       ORDER BY createdAt DESC`,
       args: [negocioId]
     });
 
-    const clientes = result.rows;
+    const clientes = result.rows.map(row => ({
+      nombre: row.nombre as string || '',
+      email: row.email as string || '',
+      telefono: row.telefono as string || '',
+      comprasTotal: row.comprasTotal as number || 0,
+      recompensasPendientes: row.recompensasPendientes as number || 0,
+      recompensasCanjeadas: row.recompensasCanjeadas as number || 0,
+    }));
 
-    // Crear contenido Excel en formato XML (Excel 2003 XML Spreadsheet)
-    // Este formato es compatible con Excel, Google Sheets y LibreOffice
-    const excelRows: string[] = [];
+    // Generar PDF usando Python
+    const clientesJson = JSON.stringify(clientes).replace(/"/g, '\\"');
+    const scriptPath = path.join(process.cwd(), 'scripts', 'generate_clientes_pdf.py');
     
-    // Encabezado XML
-    excelRows.push(`<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Styles>
-<Style ss:ID="Header">
-<Font ss:Bold="1" ss:Color="#FFFFFF"/>
-<Interior ss:Color="#4F46E5" ss:Pattern="Solid"/>
-<Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-</Style>
-<Style ss:ID="Title">
-<Font ss:Bold="1" ss:Size="16"/>
-<Alignment ss:Horizontal="Left"/>
-</Style>
-<Style ss:ID="Data">
-<Alignment ss:Vertical="Center"/>
-</Style>
-<Style ss:ID="AltRow">
-<Interior ss:Color="#F3F4F6" ss:Pattern="Solid"/>
-</Style>
-</Styles>
-<Worksheet ss:Name="Clientes">
-<Table>
-<Column ss:Width="180"/>
-<Column ss:Width="200"/>
-<Column ss:Width="120"/>
-<Column ss:Width="100"/>
-<Column ss:Width="140"/>
-<Column ss:Width="140"/>
-<Column ss:Width="150"/>
-`);
+    await execAsync(
+      `python3 "${scriptPath}" "${tempFile}" "${clientesJson}" "${negocioNombre}"`,
+      { maxBuffer: 1024 * 1024 * 10 }
+    );
 
-    // Título
-    excelRows.push(`<Row><Cell ss:MergeAcross="6" ss:StyleID="Title"><Data ss:Type="String">Clientes FideliQR - ${new Date().toLocaleDateString('es-ES')}</Data></Cell></Row>`);
-    excelRows.push('<Row/>'); // Espacio
+    // Leer el PDF generado
+    const pdfBuffer = await readFile(tempFile);
+    
+    // Eliminar archivo temporal
+    await unlink(tempFile).catch(() => {});
 
-    // Encabezados
-    const headers = ['Nombre', 'Email', 'Teléfono', 'Total Compras', 'Recompensas Pendientes', 'Recompensas Canjeadas', 'Fecha Registro'];
-    excelRows.push('<Row>');
-    headers.forEach(header => {
-      excelRows.push(`<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(header)}</Data></Cell>`);
-    });
-    excelRows.push('</Row>');
-
-    // Datos
-    clientes.forEach((cliente, index) => {
-      const isAltRow = index % 2 === 1;
-      const rowStyle = isAltRow ? ' ss:StyleID="AltRow"' : '';
-      
-      excelRows.push(`<Row${rowStyle}>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.nombre as string || '')}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.email as string || '')}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.telefono as string || '')}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.comprasTotal || 0}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.recompensasPendientes || 0}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.recompensasCanjeadas || 0}</Data></Cell>`);
-      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${formatDate(cliente.createdAt as string)}</Data></Cell>`);
-      excelRows.push('</Row>');
-    });
-
-    // Cerrar documento
-    excelRows.push(`</Table>
-</Worksheet>
-</Workbook>`);
-
-    const excel = excelRows.join('\n');
-
-    return new NextResponse(excel, {
+    return new NextResponse(pdfBuffer, {
       headers: {
-        'Content-Type': 'application/vnd.ms-excel',
-        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.xls"`
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.pdf"`
       }
     });
   } catch (error: any) {
     console.error('Error exportando clientes:', error);
+    // Limpiar archivo temporal en caso de error
+    await unlink(tempFile).catch(() => {});
     return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-function escapeXml(str: string): string {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch {
-    return dateStr;
   }
 }
