@@ -836,6 +836,14 @@ export default function AdminPage() {
                       />
                     </div>
                     <Button 
+                      variant="outline"
+                      onClick={() => window.open(`/api/admin/exportar-clientes?negocioId=${negocio?.id}`, '_blank')}
+                      className="gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">Exportar</span>
+                    </Button>
+                    <Button 
                       onClick={() => setShowNuevoClienteDialog(true)}
                       className="bg-violet-600 hover:bg-violet-700 gap-2"
                     >
