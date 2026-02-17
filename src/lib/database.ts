@@ -229,7 +229,27 @@ export const db = {
       }
       
       const result = await db.execute({ sql, args: params })
-      return (result.rows[0] as any).count
+      return Number((result.rows[0] as any).count) || 0
+    },
+
+    async aggregate(args: { where: { negocioId: string; activo?: boolean }; _sum: { recompensasPendientes?: boolean; recompensasCanjeadas?: boolean } }) {
+      const db = getClient()
+      let sql = 'SELECT SUM(recompensasPendientes) as recompensasPendientes, SUM(recompensasCanjeadas) as recompensasCanjeadas FROM Cliente WHERE negocioId = ?'
+      const params: any[] = [args.where.negocioId]
+      
+      if (args.where.activo !== undefined) {
+        sql += ' AND activo = ?'
+        params.push(args.where.activo ? 1 : 0)
+      }
+      
+      const result = await db.execute({ sql, args: params })
+      const row = result.rows[0] as any
+      return {
+        _sum: {
+          recompensasPendientes: Number(row?.recompensasPendientes) || 0,
+          recompensasCanjeadas: Number(row?.recompensasCanjeadas) || 0
+        }
+      }
     }
   },
 
