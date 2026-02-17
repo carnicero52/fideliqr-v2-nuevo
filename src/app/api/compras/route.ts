@@ -1,7 +1,7 @@
 import { db } from '@/lib/database';
 import { NextRequest, NextResponse } from 'next/server';
 import { notifyRewardToCliente, sendEmail } from '@/lib/notifications';
-import { telegramNotifyReward, telegramNotifyCompra } from '@/lib/telegram';
+import { telegramNotifyReward, telegramNotifyCompra, getDefaultTelegramConfig } from '@/lib/telegram';
 
 const COMPRAS_PARA_RECOMPENSA = 10;
 const COOLDOWN_MINUTOS = 60; // Minutos mínimos entre compras del mismo cliente (1 hora)
@@ -165,31 +165,51 @@ export async function POST(request: NextRequest) {
       esRecompensa
     });
 
+    // Obtener configuración de Telegram (de BD o variables de entorno)
+    const defaultTelegram = getDefaultTelegramConfig();
+    const telegramToken = (negocio as any).telegramToken || defaultTelegram.token;
+    const telegramChatId = (negocio as any).telegramChatId || defaultTelegram.chatId;
+    const telegramActivo = (negocio as any).telegramActivo || (telegramToken && telegramChatId);
+
+    // Log de datos del negocio para debug
+    console.log('📧 Config de notificaciones:', {
+      emailDestino: negocio.emailDestino,
+      telegramActivo,
+      telegramToken: telegramToken ? '***configurado***' : 'NO configurado',
+      telegramChatId: telegramChatId || 'NO configurado',
+    });
+
     // Notificar por Telegram
-    if (negocio.telegramActivo && negocio.telegramToken && negocio.telegramChatId) {
+    if (telegramActivo && telegramToken && telegramChatId) {
+      console.log('📤 Enviando notificación Telegram...');
       if (esRecompensa) {
         telegramNotifyReward({
-          token: negocio.telegramToken,
-          chatId: negocio.telegramChatId,
+          token: telegramToken,
+          chatId: telegramChatId,
           negocioNombre: negocio.nombre,
           clienteNombre: cliente.nombre,
           clienteEmail: cliente.email,
           comprasTotal: nuevasCompras,
-        }).catch(err => console.error('Telegram error:', err));
+        }).then(() => console.log('✅ Telegram enviado'))
+          .catch(err => console.error('❌ Telegram error:', err));
       } else {
         telegramNotifyCompra({
-          token: negocio.telegramToken,
-          chatId: negocio.telegramChatId,
+          token: telegramToken,
+          chatId: telegramChatId,
           negocioNombre: negocio.nombre,
           clienteNombre: cliente.nombre,
           compraNumero: nuevasCompras,
-        }).catch(err => console.error('Telegram error:', err));
+        }).then(() => console.log('✅ Telegram enviado'))
+          .catch(err => console.error('❌ Telegram error:', err));
       }
+    } else {
+      console.log('⚠️ Telegram no configurado');
     }
 
     // Notificar por Email al dueño
+    console.log('📧 Enviando email a:', negocio.emailDestino);
     try {
-      await sendEmail({
+      const emailResult = await sendEmail({
         to: negocio.emailDestino,
         subject: esRecompensa 
           ? `🎁 ¡Recompensa! - ${cliente.nombre}`
@@ -201,8 +221,9 @@ export async function POST(request: NextRequest) {
           ? `<h2>🎁 Recompensa</h2><p><strong>${cliente.nombre}</strong> - ${nuevasCompras} compras</p>`
           : `<h2>🛒 Compra #${nuevasCompras}</h2><p><strong>${cliente.nombre}</strong></p>`,
       });
+      console.log('📧 Resultado email:', emailResult ? '✅ Enviado' : '❌ Falló');
     } catch (emailError) {
-      console.error('Email error:', emailError);
+      console.error('❌ Email error:', emailError);
     }
 
     // Notificar al cliente si hay recompensa

@@ -1,8 +1,8 @@
 import { db } from '@/lib/database';
 import { verifyAdminSession } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { notifyNewClienteToOwner } from '@/lib/notifications';
-import { telegramNotifyNewCliente } from '@/lib/telegram';
+import { notifyNewClienteToOwner, sendEmail } from '@/lib/notifications';
+import { telegramNotifyNewCliente, getDefaultTelegramConfig } from '@/lib/telegram';
 
 // POST - Registrar cliente manualmente desde el panel admin
 export async function POST(request: NextRequest) {
@@ -87,24 +87,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Enviar notificaciones al dueño (async, no bloquear respuesta)
-    Promise.all([
-      notifyNewClienteToOwner({
-        ownerEmail: negocio.emailDestino,
+    // Obtener configuración de Telegram (de BD o variables de entorno)
+    const defaultTelegram = getDefaultTelegramConfig();
+    const telegramToken = (negocio as any).telegramToken || defaultTelegram.token;
+    const telegramChatId = (negocio as any).telegramChatId || defaultTelegram.chatId;
+    
+    console.log('📤 Notificaciones - Nuevo cliente:', {
+      emailDestino: negocio.emailDestino,
+      telegram: telegramToken ? 'configurado' : 'no configurado'
+    });
+
+    // Notificar por Email al dueño
+    sendEmail({
+      to: negocio.emailDestino,
+      subject: `🎉 Nuevo cliente registrado - ${negocio.nombre}`,
+      text: `¡Tienes un nuevo cliente!\n\nNombre: ${nombre}\nEmail: ${email}${telefono ? `\nTeléfono: ${telefono}` : ''}`,
+      html: `<h2>🎉 ¡Nuevo cliente registrado!</h2><p><strong>Nombre:</strong> ${nombre}</p><p><strong>Email:</strong> ${email}</p>${telefono ? `<p><strong>Teléfono:</strong> ${telefono}</p>` : ''}`,
+    }).then(result => console.log('📧 Email nuevo cliente:', result ? '✅ Enviado' : '❌ Falló'))
+      .catch(err => console.error('❌ Email error:', err));
+
+    // Notificar por Telegram
+    if (telegramToken && telegramChatId) {
+      telegramNotifyNewCliente({
+        token: telegramToken,
+        chatId: telegramChatId,
         negocioNombre: negocio.nombre,
         clienteNombre: nombre,
         clienteEmail: email,
-        clienteTelefono: telefono,
-      }),
-      negocio.telegramActivo && negocio.telegramToken && negocio.telegramChatId
-        ? telegramNotifyNewCliente({
-            token: negocio.telegramToken,
-            chatId: negocio.telegramChatId,
-            negocioNombre: negocio.nombre,
-            clienteNombre: nombre,
-            clienteEmail: email,
-          })
-        : Promise.resolve(),
-    ]).catch(console.error);
+      }).then(() => console.log('✅ Telegram nuevo cliente enviado'))
+        .catch(err => console.error('❌ Telegram error:', err));
+    }
 
     return NextResponse.json({
       success: true,
