@@ -126,7 +126,7 @@ export const db = {
       }
     },
 
-    async findUnique(args: { where: { qrCodigo?: string; id?: string }; include?: { negocio?: { select: { nombre: boolean } } } }) {
+    async findUnique(args: { where: { qrCodigo?: string; id?: string; negocioId_email?: { negocioId: string; email: string } }; include?: { negocio?: { select: { nombre: boolean } } } }) {
       const db = getClient()
       let sql = 'SELECT c.*, n.nombre as negocio_nombre FROM Cliente c LEFT JOIN Negocio n ON c.negocioId = n.id WHERE 1=1'
       const params: any[] = []
@@ -138,6 +138,10 @@ export const db = {
       if (args.where.id) {
         sql += ' AND c.id = ?'
         params.push(args.where.id)
+      }
+      if (args.where.negocioId_email) {
+        sql += ' AND c.negocioId = ? AND c.email = ?'
+        params.push(args.where.negocioId_email.negocioId, args.where.negocioId_email.email)
       }
       
       sql += ' LIMIT 1'
