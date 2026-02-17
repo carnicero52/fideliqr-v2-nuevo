@@ -130,6 +130,8 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -192,6 +194,21 @@ export default function AdminPage() {
       fetchConfig();
       checkEmailConfig();
     }
+  }, [isAuthenticated, negocio, currentPage, searchTerm]);
+
+  // Auto-refresh cada 10 segundos
+  useEffect(() => {
+    if (!isAuthenticated || !negocio) return;
+
+    const interval = setInterval(() => {
+      setIsRefreshing(true);
+      Promise.all([fetchStats(), fetchClientes(), fetchCompras()]).then(() => {
+        setLastUpdate(new Date());
+        setTimeout(() => setIsRefreshing(false), 500);
+      });
+    }, 10000); // 10 segundos
+
+    return () => clearInterval(interval);
   }, [isAuthenticated, negocio, currentPage, searchTerm]);
 
   const fetchStats = async () => {
@@ -611,7 +628,15 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="font-semibold">{negocio?.nombre}</h1>
-              <p className="text-xs text-muted-foreground">Panel V2</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground">Panel V2</p>
+                {lastUpdate && (
+                  <span className={`text-xs flex items-center gap-1 ${isRefreshing ? 'text-violet-600 font-medium' : 'text-muted-foreground'}`}>
+                    <span className={`w-2 h-2 rounded-full ${isRefreshing ? 'bg-violet-500 animate-pulse' : 'bg-green-500'}`}></span>
+                    Actualizado: {lastUpdate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex gap-2">

@@ -12,7 +12,7 @@ function getTursoClient() {
   return createClient({ url, authToken });
 }
 
-// GET - Exportar clientes a CSV
+// GET - Exportar clientes a Excel (XLSX)
 export async function GET(request: NextRequest) {
   const negocioId = request.nextUrl.searchParams.get('negocioId');
   
@@ -41,33 +41,111 @@ export async function GET(request: NextRequest) {
 
     const clientes = result.rows;
 
-    // Crear CSV
+    // Crear contenido Excel en formato XML (Excel 2003 XML Spreadsheet)
+    // Este formato es compatible con Excel, Google Sheets y LibreOffice
+    const excelRows: string[] = [];
+    
+    // Encabezado XML
+    excelRows.push(`<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles>
+<Style ss:ID="Header">
+<Font ss:Bold="1" ss:Color="#FFFFFF"/>
+<Interior ss:Color="#4F46E5" ss:Pattern="Solid"/>
+<Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+</Style>
+<Style ss:ID="Title">
+<Font ss:Bold="1" ss:Size="16"/>
+<Alignment ss:Horizontal="Left"/>
+</Style>
+<Style ss:ID="Data">
+<Alignment ss:Vertical="Center"/>
+</Style>
+<Style ss:ID="AltRow">
+<Interior ss:Color="#F3F4F6" ss:Pattern="Solid"/>
+</Style>
+</Styles>
+<Worksheet ss:Name="Clientes">
+<Table>
+<Column ss:Width="180"/>
+<Column ss:Width="200"/>
+<Column ss:Width="120"/>
+<Column ss:Width="100"/>
+<Column ss:Width="140"/>
+<Column ss:Width="140"/>
+<Column ss:Width="150"/>
+`);
+
+    // Título
+    excelRows.push(`<Row><Cell ss:MergeAcross="6" ss:StyleID="Title"><Data ss:Type="String">Clientes FideliQR - ${new Date().toLocaleDateString('es-ES')}</Data></Cell></Row>`);
+    excelRows.push('<Row/>'); // Espacio
+
+    // Encabezados
     const headers = ['Nombre', 'Email', 'Teléfono', 'Total Compras', 'Recompensas Pendientes', 'Recompensas Canjeadas', 'Fecha Registro'];
-    const csvRows = [headers.join(',')];
+    excelRows.push('<Row>');
+    headers.forEach(header => {
+      excelRows.push(`<Cell ss:StyleID="Header"><Data ss:Type="String">${escapeXml(header)}</Data></Cell>`);
+    });
+    excelRows.push('</Row>');
 
-    for (const cliente of clientes) {
-      const row = [
-        `"${(cliente.nombre as string || '').replace(/"/g, '""')}"`,
-        `"${(cliente.email as string || '').replace(/"/g, '""')}"`,
-        `"${(cliente.telefono as string || '').replace(/"/g, '""')}"`,
-        cliente.comprasTotal || 0,
-        cliente.recompensasPendientes || 0,
-        cliente.recompensasCanjeadas || 0,
-        `"${cliente.createdAt || ''}"`
-      ];
-      csvRows.push(row.join(','));
-    }
+    // Datos
+    clientes.forEach((cliente, index) => {
+      const isAltRow = index % 2 === 1;
+      const rowStyle = isAltRow ? ' ss:StyleID="AltRow"' : '';
+      
+      excelRows.push(`<Row${rowStyle}>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.nombre as string || '')}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.email as string || '')}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${escapeXml(cliente.telefono as string || '')}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.comprasTotal || 0}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.recompensasPendientes || 0}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="Number">${cliente.recompensasCanjeadas || 0}</Data></Cell>`);
+      excelRows.push(`<Cell ss:StyleID="Data"><Data ss:Type="String">${formatDate(cliente.createdAt as string)}</Data></Cell>`);
+      excelRows.push('</Row>');
+    });
 
-    const csv = csvRows.join('\n');
+    // Cerrar documento
+    excelRows.push(`</Table>
+</Worksheet>
+</Workbook>`);
 
-    return new NextResponse(csv, {
+    const excel = excelRows.join('\n');
+
+    return new NextResponse(excel, {
       headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.csv"`
+        'Content-Type': 'application/vnd.ms-excel',
+        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.xls"`
       }
     });
   } catch (error: any) {
     console.error('Error exportando clientes:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+function escapeXml(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  try {
+    return new Date(dateStr).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return dateStr;
   }
 }
