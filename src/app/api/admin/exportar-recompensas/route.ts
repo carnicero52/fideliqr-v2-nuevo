@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
-import { generatePDF } from '@/lib/pdf-generator';
 
 function getTursoClient() {
   const url = process.env.TURSO_DATABASE_URL;
@@ -13,7 +12,7 @@ function getTursoClient() {
   return createClient({ url, authToken });
 }
 
-// GET - Exportar recompensas a PDF
+// GET - Exportar recompensas a CSV
 export async function GET(request: NextRequest) {
   const negocioId = request.nextUrl.searchParams.get('negocioId');
   
@@ -24,13 +23,6 @@ export async function GET(request: NextRequest) {
   try {
     const db = getTursoClient();
     
-    // Obtener negocio
-    const negocioResult = await db.execute({
-      sql: 'SELECT nombre FROM Negocio WHERE id = ?',
-      args: [negocioId]
-    });
-    const negocioNombre = negocioResult.rows[0]?.nombre || 'Negocio';
-    
     // Obtener clientes con recompensas (pendientes o canjeadas)
     const result = await db.execute({
       sql: `SELECT 
@@ -39,7 +31,8 @@ export async function GET(request: NextRequest) {
         telefono,
         comprasTotal,
         recompensasPendientes,
-        recompensasCanjeadas
+        recompensasCanjeadas,
+        createdAt
       FROM Cliente 
       WHERE negocioId = ? AND (recompensasPendientes > 0 OR recompensasCanjeadas > 0)
       ORDER BY recompensasPendientes DESC, recompensasCanjeadas DESC`,
@@ -48,49 +41,29 @@ export async function GET(request: NextRequest) {
 
     const clientes = result.rows;
 
-    // Rows with pendientes for highlighting
-    const rows = clientes.map((c) => [
-      String(c.nombre || ''),
-      String(c.email || ''),
-      String(c.telefono || '-'),
-      Number(c.comprasTotal || 0),
-      Number(c.recompensasPendientes || 0),
-      Number(c.recompensasCanjeadas || 0),
-    ]);
+    // Crear CSV
+    const headers = ['Cliente', 'Email', 'Teléfono', 'Total Compras', 'Recompensas Pendientes', 'Recompensas Canjeadas', 'Fecha Registro'];
+    const csvRows = [headers.join(',')];
 
-    // Highlight rows where pendientes > 0
-    const highlightRows = clientes
-      .map((c, i) => (Number(c.recompensasPendientes || 0) > 0 ? i : -1))
-      .filter(i => i >= 0);
+    for (const cliente of clientes) {
+      const row = [
+        `"${(cliente.nombre as string || '').replace(/"/g, '""')}"`,
+        `"${(cliente.email as string || '').replace(/"/g, '""')}"`,
+        `"${(cliente.telefono as string || '').replace(/"/g, '""')}"`,
+        cliente.comprasTotal || 0,
+        cliente.recompensasPendientes || 0,
+        cliente.recompensasCanjeadas || 0,
+        `"${cliente.createdAt || ''}"`
+      ];
+      csvRows.push(row.join(','));
+    }
 
-    // Totals
-    const totalPendientes = clientes.reduce((sum, c) => sum + Number(c.recompensasPendientes || 0), 0);
-    const totalCanjeadas = clientes.reduce((sum, c) => sum + Number(c.recompensasCanjeadas || 0), 0);
+    const csv = csvRows.join('\n');
 
-    // Generar PDF
-    const pdfBuffer = await generatePDF({
-      title: `Recompensas - ${negocioNombre}`,
-      subtitle: `Generado: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-      columns: [
-        { header: 'Cliente', width: 150, align: 'left' },
-        { header: 'Email', width: 160, align: 'left' },
-        { header: 'Teléfono', width: 80 },
-        { header: 'Compras', width: 60 },
-        { header: 'Pend.', width: 50 },
-        { header: 'Canj.', width: 50 },
-      ],
-      rows,
-      headerColor: '#F59E0B',
-      alternateColor: '#FEF3C7',
-      highlightRows,
-      highlightColor: '#FCD34D',
-      totals: `Clientes con recompensas: ${clientes.length} | Pendientes: ${totalPendientes} | Canjeadas: ${totalCanjeadas}`,
-    });
-
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(csv, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="recompensas-fideliqr-${new Date().toISOString().split('T')[0]}.pdf"`
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="recompensas-fideliqr-${new Date().toISOString().split('T')[0]}.csv"`
       }
     });
   } catch (error: any) {

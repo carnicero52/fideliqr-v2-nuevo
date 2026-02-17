@@ -835,7 +835,7 @@ export default function AdminPage() {
                   Exportar Datos
                 </CardTitle>
                 <CardDescription>
-                  Descarga los datos de tu negocio en formato PDF
+                  Descarga los datos de tu negocio en formato CSV
                 </CardDescription>
               </CardHeader>
               <CardContent>

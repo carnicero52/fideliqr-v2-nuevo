@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
-import { generatePDF, formatDate } from '@/lib/pdf-generator';
 
 function getTursoClient() {
   const url = process.env.TURSO_DATABASE_URL;
@@ -13,7 +12,7 @@ function getTursoClient() {
   return createClient({ url, authToken });
 }
 
-// GET - Exportar clientes a PDF
+// GET - Exportar clientes a CSV
 export async function GET(request: NextRequest) {
   const negocioId = request.nextUrl.searchParams.get('negocioId');
   
@@ -24,13 +23,6 @@ export async function GET(request: NextRequest) {
   try {
     const db = getTursoClient();
     
-    // Obtener negocio
-    const negocioResult = await db.execute({
-      sql: 'SELECT nombre FROM Negocio WHERE id = ?',
-      args: [negocioId]
-    });
-    const negocioNombre = negocioResult.rows[0]?.nombre || 'Negocio';
-    
     // Obtener todos los clientes del negocio
     const result = await db.execute({
       sql: `SELECT 
@@ -39,7 +31,8 @@ export async function GET(request: NextRequest) {
         telefono, 
         comprasTotal, 
         recompensasPendientes, 
-        recompensasCanjeadas
+        recompensasCanjeadas,
+        createdAt
       FROM Cliente 
       WHERE negocioId = ? AND activo = 1
       ORDER BY createdAt DESC`,
@@ -48,35 +41,29 @@ export async function GET(request: NextRequest) {
 
     const clientes = result.rows;
 
-    // Generar PDF
-    const pdfBuffer = await generatePDF({
-      title: `Clientes - ${negocioNombre}`,
-      subtitle: `Generado: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
-      columns: [
-        { header: 'Nombre', width: 150, align: 'left' },
-        { header: 'Email', width: 160, align: 'left' },
-        { header: 'Teléfono', width: 80 },
-        { header: 'Compras', width: 60 },
-        { header: 'Pend.', width: 50 },
-        { header: 'Canj.', width: 50 },
-      ],
-      rows: clientes.map((c) => [
-        String(c.nombre || ''),
-        String(c.email || ''),
-        String(c.telefono || '-'),
-        Number(c.comprasTotal || 0),
-        Number(c.recompensasPendientes || 0),
-        Number(c.recompensasCanjeadas || 0),
-      ]),
-      headerColor: '#4F46E5',
-      alternateColor: '#F5F5F5',
-      totals: `Total de clientes: ${clientes.length}`,
-    });
+    // Crear CSV
+    const headers = ['Nombre', 'Email', 'Teléfono', 'Total Compras', 'Recompensas Pendientes', 'Recompensas Canjeadas', 'Fecha Registro'];
+    const csvRows = [headers.join(',')];
 
-    return new NextResponse(pdfBuffer, {
+    for (const cliente of clientes) {
+      const row = [
+        `"${(cliente.nombre as string || '').replace(/"/g, '""')}"`,
+        `"${(cliente.email as string || '').replace(/"/g, '""')}"`,
+        `"${(cliente.telefono as string || '').replace(/"/g, '""')}"`,
+        cliente.comprasTotal || 0,
+        cliente.recompensasPendientes || 0,
+        cliente.recompensasCanjeadas || 0,
+        `"${cliente.createdAt || ''}"`
+      ];
+      csvRows.push(row.join(','));
+    }
+
+    const csv = csvRows.join('\n');
+
+    return new NextResponse(csv, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.pdf"`
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="clientes-fideliqr-${new Date().toISOString().split('T')[0]}.csv"`
       }
     });
   } catch (error: any) {
