@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { readFile, unlink } from 'fs/promises';
-import path from 'path';
-
-const execAsync = promisify(exec);
+import { generatePDF } from '@/lib/pdf-generator';
 
 function getTursoClient() {
   const url = process.env.TURSO_DATABASE_URL;
@@ -25,8 +20,6 @@ export async function GET(request: NextRequest) {
   if (!negocioId) {
     return NextResponse.json({ error: 'negocioId es requerido' }, { status: 400 });
   }
-
-  const tempFile = `/tmp/recompensas-${Date.now()}.pdf`;
 
   try {
     const db = getTursoClient();
@@ -53,29 +46,46 @@ export async function GET(request: NextRequest) {
       args: [negocioId]
     });
 
-    const clientes = result.rows.map(row => ({
-      nombre: row.nombre as string || '',
-      email: row.email as string || '',
-      telefono: row.telefono as string || '',
-      comprasTotal: row.comprasTotal as number || 0,
-      recompensasPendientes: row.recompensasPendientes as number || 0,
-      recompensasCanjeadas: row.recompensasCanjeadas as number || 0,
-    }));
+    const clientes = result.rows;
 
-    // Generar PDF usando Python
-    const clientesJson = JSON.stringify(clientes).replace(/"/g, '\\"');
-    const scriptPath = path.join(process.cwd(), 'scripts', 'generate_recompensas_pdf.py');
-    
-    await execAsync(
-      `python3 "${scriptPath}" "${tempFile}" "${clientesJson}" "${negocioNombre}"`,
-      { maxBuffer: 1024 * 1024 * 10 }
-    );
+    // Rows with pendientes for highlighting
+    const rows = clientes.map((c) => [
+      String(c.nombre || ''),
+      String(c.email || ''),
+      String(c.telefono || '-'),
+      Number(c.comprasTotal || 0),
+      Number(c.recompensasPendientes || 0),
+      Number(c.recompensasCanjeadas || 0),
+    ]);
 
-    // Leer el PDF generado
-    const pdfBuffer = await readFile(tempFile);
-    
-    // Eliminar archivo temporal
-    await unlink(tempFile).catch(() => {});
+    // Highlight rows where pendientes > 0
+    const highlightRows = clientes
+      .map((c, i) => (Number(c.recompensasPendientes || 0) > 0 ? i : -1))
+      .filter(i => i >= 0);
+
+    // Totals
+    const totalPendientes = clientes.reduce((sum, c) => sum + Number(c.recompensasPendientes || 0), 0);
+    const totalCanjeadas = clientes.reduce((sum, c) => sum + Number(c.recompensasCanjeadas || 0), 0);
+
+    // Generar PDF
+    const pdfBuffer = await generatePDF({
+      title: `Recompensas - ${negocioNombre}`,
+      subtitle: `Generado: ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+      columns: [
+        { header: 'Cliente', width: 150, align: 'left' },
+        { header: 'Email', width: 160, align: 'left' },
+        { header: 'Teléfono', width: 80 },
+        { header: 'Compras', width: 60 },
+        { header: 'Pend.', width: 50 },
+        { header: 'Canj.', width: 50 },
+      ],
+      rows,
+      headerColor: '#F59E0B',
+      alternateColor: '#FEF3C7',
+      highlightRows,
+      highlightColor: '#FCD34D',
+      totals: `Clientes con recompensas: ${clientes.length} | Pendientes: ${totalPendientes} | Canjeadas: ${totalCanjeadas}`,
+    });
 
     return new NextResponse(pdfBuffer, {
       headers: {
@@ -85,7 +95,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Error exportando recompensas:', error);
-    await unlink(tempFile).catch(() => {});
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
