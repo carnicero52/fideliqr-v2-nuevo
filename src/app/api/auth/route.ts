@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar contraseña
-    if (!verifyPassword(password, negocio.password)) {
+    const validPassword = await verifyPassword(password, negocio.password);
+    if (!validPassword) {
       return NextResponse.json(
         { error: 'Credenciales incorrectas' },
         { status: 401 }

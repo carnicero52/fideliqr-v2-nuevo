@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     console.log('✅ Slug generado:', slug)
 
     // Hashear contraseña
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await hashPassword(password);
 
     // Obtener URL base para el QR
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
